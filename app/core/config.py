@@ -111,6 +111,7 @@ class Settings(BaseSettings):
         return origins
 
 
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
