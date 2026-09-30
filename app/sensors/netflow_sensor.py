@@ -7,7 +7,13 @@ import pandas as pd
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.sensors.base import Sensor, SensorResult, load_metadata
+from app.sensors.base import (
+    Sensor,
+    SensorResult,
+    load_metadata,
+    read_features,
+    read_number,
+)
 
 SENSOR_NAME = "netflow_sensor"
 THRESHOLD_KEY = "decision_threshold"
@@ -17,24 +23,6 @@ RATE_COLUMNS = ("Flow Bytes/s", "Flow Packets/s")
 MAX_FEATURES = 256
 
 logger = get_logger("sensors.netflow")
-
-
-def read_number(name: str, value: Any) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"feature '{name}' must be a number")
-    return float(value)
-
-
-def read_features(payload: dict[str, Any]) -> dict[str, Any]:
-    features = payload.get("features")
-
-    if not isinstance(features, dict):
-        raise ValueError("payload field 'features' must be an object")
-
-    if len(features) > MAX_FEATURES:
-        raise ValueError(f"payload has more than {MAX_FEATURES} features")
-
-    return features
 
 
 def build_row(
@@ -102,7 +90,7 @@ class NetflowSensor(Sensor):
 
     def predict(self, payload: dict[str, Any]) -> SensorResult:
         try:
-            features = read_features(payload)
+            features = read_features(payload, MAX_FEATURES)
             row, filled = build_row(features, 
                                     self.names, 
                                     self.fallback
