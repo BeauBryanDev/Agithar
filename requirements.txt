@@ -1,0 +1,44 @@
+## web_api
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+
+## agent_llm
+langgraph
+langchain
+langchain-anthropic
+langchain-openai
+anthropic
+openai
+
+## ml_sensors
+scikit-learn==1.6.1
+numpy==2.1.3
+xgboost==3.4.1
+onnxruntime
+joblib
+pandas
+
+## vector_stores
+chromadb
+pinecone-client
+
+## databases
+sqlalchemy
+psycopg2-binary
+alembic
+boto3
+
+## auth_security
+python-jose[cryptography]
+passlib[bcrypt]
+
+## ingestion_monitoring
+watchdog
+psutil
+
+## utils
+python-dotenv
+httpx
