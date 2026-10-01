@@ -1,9 +1,7 @@
-import math
 from pathlib import Path
 from typing import Any
 
 import joblib
-import numpy as np
 import pandas as pd
 
 from app.core.config import get_settings
@@ -18,107 +16,73 @@ from app.sensors.base import (
 
 SENSOR_NAME = "recon_sensor"
 THRESHOLD_KEY = "decision_threshold"
-# metadata has no tuned threshold, its metrics are at the 0.5 default
-DEFAULT_THRESHOLD = 0.5
-PROTOCOLS = ("ICMP", "TCP", "UDP")
-MAX_PORT = 65535
+DEFAULT_THRESHOLD = 0.95
+MAX_REQUESTS = 50000
+MAX_PATH_CHARS = 2048
 MAX_USER_AGENT_CHARS = 4096
-SUSPICIOUS_UA_KEYWORDS = (
-    "curl",
-    "python-requests",
-    "python-urllib",
-    "sqlmap",
-    "zgrab",
-    "nmap",
-    "nikto",
-    "masscan",
-)
+MIN_STATUS = 100
+MAX_STATUS = 599
 FEATURE_NAMES = (
-    "src_port",
-    "dst_port",
-    "log_bytes_sent",
-    "log_bytes_received",
-    "is_internal_traffic",
-    "ua_is_suspicious_tool",
-    "ua_length",
-    "proto_ICMP",
-    "proto_TCP",
-    "proto_UDP",
+    "req_count",
+    "ratio_404",
+    "ratio_2xx",
+    "unique_paths",
+    "ua_count",
+    "unique_path_ratio",
 )
 
 logger = get_logger("sensors.recon")
 
 
-def get_field(payload: dict[str, Any], key: str) -> Any:
-    if key not in payload:
-        raise ValueError(f"missing field '{key}'")
+def read_status(request: dict[str, Any]) -> int:
+    value = read_number("status", request.get("status"))
 
-    return payload[key]
-
-
-def read_port(payload: dict[str, Any], key: str) -> int:
-    value = read_number(key, get_field(payload, key))
-
-    if not value.is_integer() or not 0 <= value <= MAX_PORT:
-        raise ValueError(f"field '{key}' must be a port from 0 to {MAX_PORT}")
+    if not value.is_integer() or not MIN_STATUS <= value <= MAX_STATUS:
+        raise ValueError(f"status must be an integer {MIN_STATUS}-{MAX_STATUS}")
 
     return int(value)
 
 
-def read_bytes(payload: dict[str, Any], key: str) -> float:
-    value = read_number(key, get_field(payload, key))
+def read_requests(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    requests = payload.get("requests")
 
-    if not math.isfinite(value) or value < 0:
-        raise ValueError(f"field '{key}' must be a finite number >= 0")
+    if not isinstance(requests, list) or not requests:
+        raise ValueError("payload field 'requests' must be a non-empty list")
 
-    return value
+    if len(requests) > MAX_REQUESTS:
+        raise ValueError(f"payload has more than {MAX_REQUESTS} requests")
 
-
-def read_flag(payload: dict[str, Any], key: str) -> bool:
-    value = get_field(payload, key)
-
-    if not isinstance(value, bool):
-        raise ValueError(f"field '{key}' must be a boolean")
-
-    return value
-
-
-def read_protocol(payload: dict[str, Any]) -> str:
-    protocol = require_str(payload, "protocol", 16).upper()
-
-    if protocol not in PROTOCOLS:
-        raise ValueError(f"field 'protocol' must be one of {PROTOCOLS}")
-
-    return protocol
-
-
-def is_suspicious_tool(user_agent: str) -> bool:
-    lowered = user_agent.lower()
-
-    for keyword in SUSPICIOUS_UA_KEYWORDS:
-        if keyword in lowered:
-            return True
-
-    return False
+    return requests
 
 
 def build_features(payload: dict[str, Any]) -> dict[str, float]:
-    user_agent = require_str(payload, "user_agent", MAX_USER_AGENT_CHARS)
-    protocol = read_protocol(payload)
+    paths = set()
+    user_agents = set()
+    count_404 = 0
+    count_2xx = 0
+    requests = read_requests(payload)
+
+    for request in requests:
+        if not isinstance(request, dict):
+            raise ValueError("each request must be an object")
+
+        status = read_status(request)
+        paths.add(require_str(request, "path", MAX_PATH_CHARS))
+        user_agents.add(
+            require_str(request, "user_agent", MAX_USER_AGENT_CHARS)
+        )
+        count_404 += int(status == 404)
+        count_2xx += int(200 <= status <= 299)
+
+    total = len(requests)
 
     return {
-        "src_port": read_port(payload, "src_port"),
-        "dst_port": read_port(payload, "dst_port"),
-        "log_bytes_sent": math.log1p(read_bytes(payload, "bytes_sent")),
-        "log_bytes_received": math.log1p(
-            read_bytes(payload, "bytes_received")
-        ),
-        "is_internal_traffic": int(read_flag(payload, "is_internal_traffic")),
-        "ua_is_suspicious_tool": int(is_suspicious_tool(user_agent)),
-        "ua_length": len(user_agent),
-        "proto_ICMP": int(protocol == "ICMP"),
-        "proto_TCP": int(protocol == "TCP"),
-        "proto_UDP": int(protocol == "UDP"),
+        "req_count": total,
+        "ratio_404": count_404 / total,
+        "ratio_2xx": count_2xx / total,
+        "unique_paths": len(paths),
+        "ua_count": len(user_agents),
+        "unique_path_ratio": len(paths) / total,
     }
 
 
@@ -165,9 +129,8 @@ class ReconSensor(Sensor):
     def predict(self, payload: dict[str, Any]) -> SensorResult:
         try:
             features = build_features(payload)
-            
         except ValueError as exc:
-            logger.warning("connection rejected: %s", exc)
+            logger.warning("window rejected: %s", exc)
             raise
 
         frame = pd.DataFrame([features], columns=self.names)
@@ -176,7 +139,7 @@ class ReconSensor(Sensor):
 
         if is_anomalous:
             logger.warning(
-                "suspicious connection",
+                "suspicious scan window",
                 extra={
                     "sensor": self.name,
                     "score": round(score, 6),
@@ -191,6 +154,7 @@ class ReconSensor(Sensor):
             threshold=self.threshold,
             detail={
                 "model": self.metadata.get("model"),
+                "window_seconds": self.metadata.get("window_seconds"),
                 "features": features,
             },
         )
