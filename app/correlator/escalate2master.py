@@ -16,6 +16,7 @@ def build_case(
         "severity": decision["severity"],
         "composite_score": decision["composite_score"],
         "num_sensors": decision["num_sensors"],
+        "num_strong_sensors": decision["num_strong_sensors"],
         "contributing_sensors": composite["contributing_sensors"],
         "sensor_scores": composite["sensor_scores"],
         "event_counts": dict(window.counts),

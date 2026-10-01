@@ -5,9 +5,11 @@ WEIGHTS = {
     "netflow_sensor": 1.0,
     "cnn1d_a": 0.8,
     "cnn1d_b": 0.8,
-    "recon_sensor": 0.2,
+    "recon_sensor": 0.4,
 }
 DEFAULT_WEIGHT = 0.5
+# a sensor below this weight adds to the score but not to the sensor count
+STRONG_WEIGHT = 0.5
 
 
 def weight_for(sensor: str) -> float:
@@ -18,9 +20,14 @@ def compute_composite(best: dict[str, dict[str, Any]]) -> dict[str, Any]:
     total_weight = 0.0
     weighted_sum = 0.0
     sensor_scores = {}
+    strong_sensors = []
 
     for sensor, event in best.items():
         weight = weight_for(sensor)
+
+        if weight >= STRONG_WEIGHT:
+            strong_sensors.append(sensor)
+
         weighted_sum += event["score"] * weight
         total_weight += weight
         sensor_scores[sensor] = event["score"]
@@ -30,6 +37,7 @@ def compute_composite(best: dict[str, dict[str, Any]]) -> dict[str, Any]:
     return {
         "composite_score": composite,
         "num_sensors": len(best),
+        "num_strong_sensors": len(strong_sensors),
         "contributing_sensors": sorted(best),
         "sensor_scores": sensor_scores,
     }
