@@ -5,10 +5,12 @@ from typing import Any
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = PROJECT_ROOT / ".env"
 MODELS_DIR = Path("models")
 CORS_SEPARATOR = ","
+JWT_SECRET_MIN_LENGTH = 32
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
@@ -19,9 +21,6 @@ class Settings(BaseSettings):
         extra="ignore",
         validate_default=True,
     )
-
-    hf_endpoint_url: str | None = None
-    hf_api_token: SecretStr | None = None
 
     logsentinel_model_path: Path = (
         MODELS_DIR / "LogSentinel" / "logsentinel.onnx"
@@ -54,7 +53,7 @@ class Settings(BaseSettings):
     )
 
     recon_model_path: Path = (
-        MODELS_DIR / "Recon_Sensor" / "recon_sensor_xgb_model.joblib"
+        MODELS_DIR / "Recon_Sensor" / "recon_sensor_xgb.joblib"
     )
     recon_metadata_path: Path = (
         MODELS_DIR / "Recon_Sensor" / "recon_sensor_xgb_metadata.json"
@@ -64,6 +63,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173" 
     # TODO: agithar.tensorkingdom.com when it is deployed.
     session_ttl_seconds: int = Field(default=3600, gt=0)
+
+    database_url: SecretStr | None = None
+    jwt_secret_key: SecretStr | None = None
+    access_token_ttl_seconds: int = Field(default=900, gt=0, le=86400)
 
     log_dir: Path = Path("logs")
     log_level: str = "INFO"
@@ -86,6 +89,22 @@ class Settings(BaseSettings):
             raise ValueError(f"log_level must be one of {LOG_LEVELS}")
         
         return level
+
+    @field_validator("jwt_secret_key", mode="after")
+    @classmethod
+    def require_strong_jwt_secret(
+        cls, value: SecretStr | None
+    ) -> SecretStr | None:
+
+        if value is None or not value.get_secret_value():
+            return None
+
+        if len(value.get_secret_value()) < JWT_SECRET_MIN_LENGTH:
+            raise ValueError(
+                f"jwt_secret_key needs {JWT_SECRET_MIN_LENGTH}+ characters"
+            )
+
+        return value
 
     @field_validator("cors_origins", mode="after")
     @classmethod
