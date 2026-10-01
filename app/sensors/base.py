@@ -38,7 +38,29 @@ def load_metadata(path: Path) -> dict[str, Any]:
         return json.load(handle)
 
 
-def require_str(payload: dict[str, Any], 
+def read_number(name: str, value: Any) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"feature '{name}' must be a number")
+
+    return float(value)
+
+
+def read_features(
+    payload: dict[str, Any],
+    max_features: int,
+) -> dict[str, Any]:
+    features = payload.get("features")
+
+    if not isinstance(features, dict):
+        raise ValueError("payload field 'features' must be an object")
+
+    if len(features) > max_features:
+        raise ValueError(f"payload has more than {max_features} features")
+
+    return features
+
+
+def require_str(payload: dict[str, Any],
                 key: str, 
                 max_chars: int
                 ) -> str:
