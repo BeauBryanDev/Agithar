@@ -96,7 +96,7 @@ def create_user(db: Session,
     db.add(user)
     commit_or_rollback(db)
     db.refresh(user)
-    logger.info("user created", 
+    logger.info("New user created",
                 extra={"user_id": user.user_id}
                 )
 
