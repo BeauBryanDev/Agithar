@@ -8,6 +8,7 @@ from app.correlator.aggregation_window import WindowStore
 from app.correlator.decision import SEVERITY_RANK, decide
 from app.correlator.escalate2master import build_case
 from app.correlator.scoring import compute_composite
+from app.schemas.events import EventContext
 from app.sensors.base import SensorResult
 
 MAX_SENSOR_NAME_CHARS = 64
@@ -64,6 +65,15 @@ def read_score(event: dict[str, Any]) -> float:
     return float(value)
 
 
+def read_context(event: dict[str, Any]) -> dict[str, Any]:
+    value = event.get("context")
+
+    if value is None:
+        return {}
+
+    return EventContext.model_validate(value).model_dump(exclude_none=True)
+
+
 def normalize_event(event: dict[str, Any]) -> dict[str, Any]:
     sensor = event.get("source_sensor")
 
@@ -83,6 +93,7 @@ def normalize_event(event: dict[str, Any]) -> dict[str, Any]:
         "ip": read_ip(event),
         "timestamp": read_timestamp(event),
         "detail": event.get("detail") or {},
+        "context": read_context(event),
     }
 
 

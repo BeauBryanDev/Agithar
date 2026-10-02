@@ -15,7 +15,7 @@ from app.sensors.base import (
 from app.sensors.net_guard_preprocess import FlowPreprocessor
 
 
-SENSOR_NAME = "cnn1d_b"
+SENSOR_NAME = "net_guard"
 BENIGN_CLASS = "BENIGN"
 MAX_FEATURES = 256
 PROBABILITY_DIGITS = 6
