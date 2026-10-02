@@ -2,7 +2,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routers import health, incidents, users
+from app.api.routers import chat, health, incidents, users
 from app.core.config import get_settings
 from app.core.lifespan import lifespan
 from app.core.logging import get_logger
@@ -29,6 +29,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     health.router,
     users.router,
     incidents.router,
+    chat.router,
 )
 
 
