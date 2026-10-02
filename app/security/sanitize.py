@@ -16,13 +16,16 @@ SPACE_CATEGORIES = frozenset({"Zl", "Zp"})
 DROP_CATEGORIES = frozenset({"Cc", "Cf", "Cs", "Co", "Cn"})
 
 
-def strip_control_chars(value: str) -> str:
+def strip_control_chars(value: str, keep_newlines: bool = False) -> str:
     kept: list[str] = []
 
     for char in value:
         category = unicodedata.category(char)
 
-        if char in SPACE_CHARS or category in SPACE_CATEGORIES:
+        if keep_newlines and char == "\n":
+            kept.append(char)
+
+        elif char in SPACE_CHARS or category in SPACE_CATEGORIES:
             kept.append(" ")
 
         elif category not in DROP_CATEGORIES:
@@ -31,13 +34,14 @@ def strip_control_chars(value: str) -> str:
     return "".join(kept)
 
 
-def sanitize_string(value: str, 
-                    max_chars: int = MAX_STRING_CHARS
+def sanitize_string(value: str,
+                    max_chars: int = MAX_STRING_CHARS,
+                    keep_newlines: bool = False,
                     ) -> str:
 
     cleaned = value[:max_chars * NORMALIZE_SLACK]
     cleaned = unicodedata.normalize("NFKC", cleaned)
-    cleaned = strip_control_chars(cleaned)
+    cleaned = strip_control_chars(cleaned, keep_newlines)
 
     if len(cleaned) > max_chars:
         cleaned = cleaned[:max_chars] + TRUNCATION_MARKER
