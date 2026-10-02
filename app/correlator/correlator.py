@@ -9,6 +9,7 @@ from app.correlator.decision import SEVERITY_RANK, decide
 from app.correlator.escalate2master import build_case
 from app.correlator.scoring import compute_composite
 from app.schemas.events import EventContext
+from app.security.sanitize import sanitize_detail
 from app.sensors.base import SensorResult
 
 MAX_SENSOR_NAME_CHARS = 64
@@ -92,7 +93,7 @@ def normalize_event(event: dict[str, Any]) -> dict[str, Any]:
         "is_anomalous": event["is_anomalous"],
         "ip": read_ip(event),
         "timestamp": read_timestamp(event),
-        "detail": event.get("detail") or {},
+        "detail": sanitize_detail(event.get("detail") or {}),
         "context": read_context(event),
     }
 

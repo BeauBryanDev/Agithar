@@ -5,6 +5,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.security.sanitize import sanitize_string
+
 MAX_SENSOR_NAME_CHARS = 64
 MAX_PATH_CHARS = 512
 MAX_USER_AGENT_CHARS = 1024
@@ -39,7 +41,9 @@ class EventContext(BaseModel):
         if value is None:
             return None
 
-        return value.split("?", 1)[0].split("#", 1)[0]
+        path = value.split("?", 1)[0].split("#", 1)[0]
+
+        return sanitize_string(path, MAX_PATH_CHARS)
 
     @field_validator("user_agent_sha256")
     @classmethod
