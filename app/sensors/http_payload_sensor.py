@@ -13,7 +13,7 @@ from app.sensors.base import (
     require_str,
 )
 
-SENSOR_NAME = "sensor_payload"
+SENSOR_NAME = "http_payload_sensor"
 HTTP_VERSION_MARKER = " HTTP/"
 MAX_FIELD_CHARS = 65536
 THRESHOLD_KEY = "decision_threshold"

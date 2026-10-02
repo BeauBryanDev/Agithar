@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.sensors.base import Sensor, SensorResult, load_metadata
 
-SENSOR_NAME = "cnn1d_a" # logsentinel 
+SENSOR_NAME = "log_sentinel"
 PAD_ID = 0
 UNKNOWN_TOKEN = "<UNK>"
 MAX_EVENTS = 10000
@@ -161,4 +161,5 @@ class LogSentinelSensor(Sensor):
                 "truncated": len(events) > self.max_len,
                 "unknown_events": unknown,
             },
+            # TODO: add a "score" field to the result, IP, RAW_URL and HTTP_METHOD, USER AGENT
         )
