@@ -1,11 +1,11 @@
 from typing import Any
 
 WEIGHTS = {
-    "sensor_payload": 1.0,
+    "http_payload_sensor": 1.0,
     "netflow_sensor": 1.0,
-    "cnn1d_a": 0.8,
-    "cnn1d_b": 0.8,
-    "recon_sensor": 0.4,
+    "log_sentinel": 0.8,
+    "net_guard": 0.8,
+    "recon_sensor": 0.5,
 }
 DEFAULT_WEIGHT = 0.5
 # a sensor below this weight adds to the score but not to the sensor count

@@ -8,6 +8,7 @@ def build_case(
     composite: dict[str, Any],
     decision: dict[str, Any],
 ) -> dict[str, Any]:
+    
     return {
         "case_id": window.key,
         "ip": window.ip,
