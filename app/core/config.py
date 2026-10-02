@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     )
 
     chroma_persist_dir: Path = Path("data") / "chroma"
+    exploitdb_csv_path: Path = (
+        Path("data") / "exploitdb" / "files_exploits.csv"
+    )
     cors_origins: str = "http://localhost:5173" 
     # TODO: agithar.tensorkingdom.com when it is deployed.
     session_ttl_seconds: int = Field(default=3600, gt=0)
@@ -70,6 +73,16 @@ class Settings(BaseSettings):
 
     log_dir: Path = Path("logs")
     log_level: str = "INFO"
+    
+    # THREAT INTELLIGENCE API KEYS
+    abuseipdb_api_key: SecretStr | None = None
+    shodan_api_key: SecretStr | None = None
+    virustotal_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "VIRUSTOTAL_API_KEY", "VIRUS_TOTAL_API_KEY"
+        ),
+    )
 
     @field_validator("*", mode="after")
     @classmethod
@@ -105,6 +118,40 @@ class Settings(BaseSettings):
             )
 
         return value
+
+    @field_validator("abuseipdb_api_key", mode="after")
+    @classmethod
+    def empty_abuseipdb_key_is_unset(
+        cls, value: SecretStr | None
+    ) -> SecretStr | None:
+
+        if value is None or not value.get_secret_value().strip():
+            return None
+
+        return value
+    
+    @field_validator("shodan_api_key", mode="after")
+    @classmethod
+    def empty_shodan_key_is_unset(
+        cls, value: SecretStr | None
+    ) -> SecretStr | None:
+
+        if value is None or not value.get_secret_value().strip():
+            return None
+        
+        return value
+    
+    @field_validator("virustotal_api_key", mode="after")
+    @classmethod
+    def empty_virustotal_key_is_unset(
+        cls, value: SecretStr | None
+    ) -> SecretStr | None:
+
+        if value is None or not value.get_secret_value().strip():
+            return None
+        
+        return value
+    
 
     @field_validator("cors_origins", mode="after")
     @classmethod

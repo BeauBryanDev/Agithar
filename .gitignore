@@ -232,3 +232,6 @@ notes.md
 *.onnx
 arrash
 models/
+
+# ExploitDB metadata index, shipped to the server with scp
+data/exploitdb/

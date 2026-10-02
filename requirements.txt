@@ -23,7 +23,7 @@ pandas
 
 ## vector_stores
 chromadb
-pinecone-client
+pinecone
 
 ## databases
 sqlalchemy
