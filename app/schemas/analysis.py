@@ -34,7 +34,9 @@ class AgentVerdict(BaseModel):
     owasp_category: Optional[str] = Field(
         default=None, pattern=OWASP_PATTERN
     )
-    summary: str = Field(min_length=1, max_length=MAX_SUMMARY_CHARS + 32)
+    summary: str = Field(min_length=1, 
+                         max_length=MAX_SUMMARY_CHARS + 32
+                         )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -52,7 +54,9 @@ class AgentVerdict(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    input: str = Field(min_length=1, max_length=MAX_INPUT_CHARS)
+    input: str = Field(min_length=1,
+                       max_length=MAX_INPUT_CHARS
+                       )
     session_id: Optional[str] = Field(
         default=None, pattern=SESSION_ID_PATTERN
     )
@@ -62,12 +66,20 @@ class AnalyzeRequest(BaseModel):
     @field_validator("input")
     @classmethod
     def sanitize_input(cls, value: str) -> str:
-        return sanitize_string(value, MAX_INPUT_CHARS)
+        
+        return sanitize_string(value, 
+                               MAX_INPUT_CHARS, 
+                               keep_newlines=True
+                               )
 
 
 class DetectorResult(BaseModel):
-    id: str = Field(min_length=1, max_length=MAX_ID_CHARS)
-    detector: str = Field(min_length=1, max_length=MAX_ID_CHARS)
+    id: str = Field(min_length=1, 
+                    max_length=MAX_ID_CHARS
+                    )
+    detector: str = Field(min_length=1,
+                          max_length=MAX_ID_CHARS
+                          )
     anomaly_score: float = Field(ge=0.0, le=1.0)
     verdict: DETECTOR_VERDICT
     threshold: float = Field(ge=0.0, le=1.0)
@@ -83,14 +95,18 @@ class DetectorResult(BaseModel):
 
 class EvidenceRef(BaseModel):
     id: str = Field(min_length=1, 
-                    max_length=MAX_ID_CHARS)
+                    max_length=MAX_ID_CHARS
+                    )
     claim_span: tuple[int, int]
 
     model_config = ConfigDict(extra="forbid")
 
     @field_validator("claim_span")
     @classmethod
-    def validate_span(cls, value: tuple[int, int]) -> tuple[int, int]:
+    def validate_span(cls, 
+                      value: tuple[int, int]
+                      ) -> tuple[int, int]:
+        
         start, end = value
 
         if start < 0 or end < start:
@@ -116,7 +132,9 @@ class AnalyzeResponse(BaseModel):
     @field_validator("text", mode="before")
     @classmethod
     def sanitize_text(cls, value: str) -> str:
-        return sanitize_string(str(value), MAX_TEXT_CHARS)
+        
+        return sanitize_string(str(value), 
+                               MAX_TEXT_CHARS)
 
     @model_validator(mode="after")
     def check_refs(self) -> "AnalyzeResponse":
