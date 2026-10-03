@@ -32,7 +32,10 @@ class Unit:
     page_end: int
 
 
-def continues_previous(units: list[Unit], kind: str, text: str, page: int):
+def continues_previous(units: list[Unit], 
+                       kind: str, 
+                       text: str, 
+                       page: int):
     # A paragraph that runs over a page break is one paragraph.
     if not units or kind != "prose":
         return False
@@ -55,16 +58,28 @@ def section_units(pages: list[CleanPage]) -> list[Unit]:
             if not text:
                 continue
 
-            if continues_previous(units, block.kind, text, page.page):
+            if continues_previous(units, block.kind, 
+                                  text, 
+                                  page.page
+                                  ):
                 units[-1].text += SENTENCE_JOIN + text
                 units[-1].page_end = page.page
             else:
-                units.append(Unit(block.kind, text, page.page, page.page))
+                units.append(Unit(block.kind, 
+                                  text, 
+                                  page.page, 
+                                  page.page)
+                             )
 
     return units
 
 
-def make_piece(unit: Unit, text: str, joiner: str, atomic: bool) -> Piece:
+def make_piece(unit: Unit, 
+               text: str, 
+               joiner: str, 
+               atomic: bool
+               ) -> Piece:
+    
     return Piece(
         kind=unit.kind,
         text=text,
@@ -76,13 +91,23 @@ def make_piece(unit: Unit, text: str, joiner: str, atomic: bool) -> Piece:
     )
 
 
-def sentence_pieces(unit: Unit, sentence: str, joiner: str) -> list[Piece]:
+def sentence_pieces(unit: Unit, 
+                    sentence: str, 
+                    joiner: str
+                    ) -> list[Piece]:
+    
     if count_tokens(sentence) <= CHUNK_TOKENS:
-        return [make_piece(unit, sentence, joiner, False)]
+        
+        return [make_piece(unit, 
+                           sentence, 
+                           joiner, 
+                           False)
+                ]
 
     pieces = []
 
     for index, part in enumerate(split_by_tokens(sentence, CHUNK_TOKENS)):
+        
         part_joiner = joiner if index == 0 else ""
         pieces.append(make_piece(unit, part, part_joiner, False))
 
