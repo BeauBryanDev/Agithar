@@ -235,3 +235,17 @@ models/
 
 # ExploitDB metadata index, shipped to the server with scp
 data/exploitdb/
+
+
+# Ignore cybersec books 
+knowledge/
+
+# Ignore MITRE
+enerprise-attack.json
+
+# Ignore Exploits
+csic_database.csv
+
+data/
+
+

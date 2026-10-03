@@ -1,0 +1,464 @@
+{
+  "version": 1,
+  "books": [
+    {
+      "doc_id": "nist-sp-800-61r3",
+      "title": "NIST SP 800-61r3: Incident Response Recommendations and Considerations for Cybersecurity Risk Management",
+      "path": "knowledge/SOC/NIST.SP.800-61r3.pdf",
+      "namespace": "soc",
+      "year": 2025,
+      "sections": [
+        {
+          "title": "Executive Summary",
+          "pdf_start": 9,
+          "pdf_end": 9
+        },
+        {
+          "title": "1. Introduction",
+          "pdf_start": 10,
+          "pdf_end": 11
+        },
+        {
+          "title": "2. Incident Response as Part of Cybersecurity Risk Management",
+          "pdf_start": 12,
+          "pdf_end": 17
+        },
+        {
+          "title": "3. CSF 2.0 Community Profile for Cyber Incident Risk Management",
+          "pdf_start": 18,
+          "pdf_end": 43,
+          "layout": "auto"
+        },
+        {
+          "title": "Appendix B. Glossary",
+          "pdf_start": 47,
+          "pdf_end": 47
+        }
+      ]
+    },
+    {
+      "doc_id": "nist-sp-800-150",
+      "title": "NIST SP 800-150: Guide to Cyber Threat Information Sharing",
+      "path": "knowledge/SOC/NIST.SP.800-150.pdf",
+      "namespace": "soc",
+      "year": 2016,
+      "sections": [
+        {
+          "title": "Executive Summary",
+          "pdf_start": 5,
+          "pdf_end": 7
+        },
+        {
+          "title": "1. Introduction",
+          "pdf_start": 9,
+          "pdf_end": 9
+        },
+        {
+          "title": "2. Basics of Cyber Threat Information Sharing",
+          "pdf_start": 10,
+          "pdf_end": 13
+        },
+        {
+          "title": "3. Establishing Sharing Relationships",
+          "pdf_start": 14,
+          "pdf_end": 27
+        },
+        {
+          "title": "4. Participating in Sharing Relationships",
+          "pdf_start": 28,
+          "pdf_end": 34
+        },
+        {
+          "title": "Appendix A. Cyber Threat Information Sharing Scenarios",
+          "pdf_start": 35,
+          "pdf_end": 37
+        },
+        {
+          "title": "Appendix B. Glossary",
+          "pdf_start": 38,
+          "pdf_end": 39
+        },
+        {
+          "title": "Appendix C. Acronyms",
+          "pdf_start": 40,
+          "pdf_end": 40
+        }
+      ],
+      "strip_lines": [
+        "NIST SP 800-150 GUIDE TO CYBER THREAT INFORMATION SHARING"
+      ]
+    },
+    {
+      "doc_id": "nsa-csi-cloud-logs-threat-hunting",
+      "title": "NSA Cybersecurity Information Sheet: Manage Cloud Logs for Effective Threat Hunting",
+      "path": "knowledge/SOC/CSI_CloudTop10-Logs-for-Effective-Threat-Hunting.pdf",
+      "namespace": "soc",
+      "year": 2024,
+      "strip_lines": [
+        "National Security Agency | Cybersecurity Information Sheet",
+        "NSA | Manage Cloud Logs for Effective Threat Hunting",
+        "U/OO/126083-24 | PP-24-0822 | March 2024 Ver. 1.0"
+      ],
+      "sections": [
+        {
+          "title": "Manage Cloud Logs for Effective Threat Hunting",
+          "pdf_start": 1,
+          "pdf_end": 9
+        }
+      ]
+    },
+    {
+      "doc_id": "practice-of-network-security-monitoring",
+      "title": "The Practice of Network Security Monitoring",
+      "path": "knowledge/SOC/The_Practice_of_Network_Security_Monitoring.pdf",
+      "namespace": "soc",
+      "year": 2013,
+      "strip_lines": [
+        "www.it-ebooks.info"
+      ],
+      "sections": [
+        {
+          "title": "Chapter 1: Network Security Monitoring Rationale",
+          "pdf_start": 37,
+          "pdf_end": 66
+        },
+        {
+          "title": "Chapter 2: Collecting Network Traffic: Access, Storage, and Management",
+          "pdf_start": 67,
+          "pdf_end": 86
+        },
+        {
+          "title": "Chapter 3: Stand-alone NSM Deployment and Installation",
+          "pdf_start": 89,
+          "pdf_end": 108
+        },
+        {
+          "title": "Chapter 4: Distributed Deployment",
+          "pdf_start": 109,
+          "pdf_end": 132
+        },
+        {
+          "title": "Chapter 5: SO Platform Housekeeping",
+          "pdf_start": 133,
+          "pdf_end": 143
+        },
+        {
+          "title": "Chapter 6: Command Line Packet Analysis Tools",
+          "pdf_start": 147,
+          "pdf_end": 167
+        },
+        {
+          "title": "Chapter 7: Graphical Packet Analysis Tools",
+          "pdf_start": 169,
+          "pdf_end": 191
+        },
+        {
+          "title": "Chapter 8: NSM Consoles",
+          "pdf_start": 193,
+          "pdf_end": 216
+        },
+        {
+          "title": "Chapter 9: NSM Operations",
+          "pdf_start": 219,
+          "pdf_end": 239
+        },
+        {
+          "title": "Chapter 10: Server-side Compromise",
+          "pdf_start": 241,
+          "pdf_end": 267
+        },
+        {
+          "title": "Chapter 11: Client-side Compromise",
+          "pdf_start": 269,
+          "pdf_end": 296
+        },
+        {
+          "title": "Chapter 12: Extending SO",
+          "pdf_start": 297,
+          "pdf_end": 322
+        },
+        {
+          "title": "Chapter 13: Proxies and Checksums",
+          "pdf_start": 323,
+          "pdf_end": 336
+        },
+        {
+          "title": "Conclusion",
+          "pdf_start": 337,
+          "pdf_end": 343
+        },
+        {
+          "title": "Appendix: SO Scripts and Configuration",
+          "pdf_start": 345,
+          "pdf_end": 367
+        }
+      ]
+    },
+    {
+      "doc_id": "11-strategies-world-class-soc",
+      "title": "11 Strategies of a World-Class Cybersecurity Operations Center",
+      "path": "knowledge/SOC/11-strategies-of-a-world-class-cybersecurity-operations-center.pdf",
+      "namespace": "soc",
+      "year": 2022,
+      "sections": [
+        {
+          "title": "Executive Summary",
+          "pdf_start": 21,
+          "pdf_end": 22
+        },
+        {
+          "title": "Introduction",
+          "pdf_start": 23,
+          "pdf_end": 27
+        },
+        {
+          "title": "Fundamentals",
+          "pdf_start": 29,
+          "pdf_end": 46
+        },
+        {
+          "title": "Strategy 1: Know What You Are Protecting and Why",
+          "pdf_start": 47,
+          "pdf_end": 60
+        },
+        {
+          "title": "Strategy 2: Give the SOC the Authority to Do Its Job",
+          "pdf_start": 61,
+          "pdf_end": 70
+        },
+        {
+          "title": "Strategy 3: Build a SOC Structure to Match Your Organizational Needs",
+          "pdf_start": 71,
+          "pdf_end": 119
+        },
+        {
+          "title": "Strategy 4: Hire AND Grow Quality Staff",
+          "pdf_start": 121,
+          "pdf_end": 143
+        },
+        {
+          "title": "Strategy 5: Prioritize Incident Response",
+          "pdf_start": 145,
+          "pdf_end": 170
+        },
+        {
+          "title": "Strategy 6: Illuminate Adversaries with Cyber Threat Intelligence",
+          "pdf_start": 171,
+          "pdf_end": 198
+        },
+        {
+          "title": "Strategy 7: Select and Collect the Right Data",
+          "pdf_start": 199,
+          "pdf_end": 259
+        },
+        {
+          "title": "Strategy 8: Leverage Tools to Support Analyst Workflow",
+          "pdf_start": 261,
+          "pdf_end": 304
+        },
+        {
+          "title": "Strategy 9: Communicate Clearly, Collaborate Often, Share Generously",
+          "pdf_start": 305,
+          "pdf_end": 319
+        },
+        {
+          "title": "Strategy 10: Measure Performance to Improve Performance",
+          "pdf_start": 321,
+          "pdf_end": 337
+        },
+        {
+          "title": "Strategy 11: Turn Up the Volume by Expanding SOC Functionality",
+          "pdf_start": 339,
+          "pdf_end": 376
+        },
+        {
+          "title": "Appendix C: What Documentation Should the SOC Maintain?",
+          "pdf_start": 420,
+          "pdf_end": 426
+        }
+      ],
+      "layout": "auto"
+    },
+    {
+      "doc_id": "debian-reference",
+      "title": "Debian Reference",
+      "path": "knowledge/Linux_Admin/debian-reference.pdf",
+      "namespace": "linux-admin",
+      "year": 2026,
+      "version": "2.150",
+      "sections": [
+        {
+          "title": "Chapter 1: GNU/Linux tutorials",
+          "pdf_start": 28,
+          "pdf_end": 64
+        },
+        {
+          "title": "Chapter 2: Debian package management",
+          "pdf_start": 66,
+          "pdf_end": 106
+        },
+        {
+          "title": "Chapter 3: The system initialization",
+          "pdf_start": 107,
+          "pdf_end": 119
+        },
+        {
+          "title": "Chapter 4: Authentication and access controls",
+          "pdf_start": 120,
+          "pdf_end": 130
+        },
+        {
+          "title": "Chapter 5: Network setup",
+          "pdf_start": 131,
+          "pdf_end": 140
+        },
+        {
+          "title": "Chapter 6: Network applications",
+          "pdf_start": 141,
+          "pdf_end": 154
+        },
+        {
+          "title": "Chapter 12: Programming",
+          "pdf_start": 263,
+          "pdf_end": 283
+        }
+      ]
+    },
+    {
+      "doc_id": "how-linux-works",
+      "title": "How Linux Works, 3rd Edition (Early Access)",
+      "path": "knowledge/Linux_Admin/How-Linux-Works.pdf",
+      "namespace": "linux-admin",
+      "year": 2021,
+      "strip_lines": [
+        "How Linux Works (Early Access) © 2021 by Brian Ward"
+      ],
+      "sections": [
+        {
+          "title": "Chapter 1: Fundamentals",
+          "pdf_start": 25,
+          "pdf_end": 34
+        },
+        {
+          "title": "Chapter 2: Basic Commands and Directory Hierarchy",
+          "pdf_start": 35,
+          "pdf_end": 70
+        },
+        {
+          "title": "Chapter 3: Devices",
+          "pdf_start": 71,
+          "pdf_end": 91
+        },
+        {
+          "title": "Chapter 4: Disks and Filesystems",
+          "pdf_start": 93,
+          "pdf_end": 139
+        },
+        {
+          "title": "Chapter 5: How the Linux Kernel Boots",
+          "pdf_start": 141,
+          "pdf_end": 159
+        },
+        {
+          "title": "Chapter 6: How User-Space Starts",
+          "pdf_start": 161,
+          "pdf_end": 189
+        },
+        {
+          "title": "Chapter 7: System Configuration",
+          "pdf_start": 191,
+          "pdf_end": 222
+        },
+        {
+          "title": "Chapter 8: Process and Resources",
+          "pdf_start": 223,
+          "pdf_end": 246
+        },
+        {
+          "title": "Chapter 9: Network Configuration",
+          "pdf_start": 247,
+          "pdf_end": 292
+        },
+        {
+          "title": "Chapter 10: Network Application and Services",
+          "pdf_start": 293,
+          "pdf_end": 314
+        },
+        {
+          "title": "Chapter 11: Shell Scripts",
+          "pdf_start": 315,
+          "pdf_end": 337
+        },
+        {
+          "title": "Chapter 12: Network File Transfer",
+          "pdf_start": 339,
+          "pdf_end": 358
+        }
+      ]
+    },
+    {
+      "doc_id": "linux-basics-for-hackers",
+      "title": "Linux Basics for Hackers (OccupyTheWeb)",
+      "path": "knowledge/Offensive/Linux_Basics4Hackers.pdf",
+      "namespace": "offensive",
+      "year": 2019,
+      "sections": [
+        {
+          "title": "Chapter 1: Getting Started with the Basics",
+          "pdf_start": 39,
+          "pdf_end": 54
+        },
+        {
+          "title": "Chapter 2: Text Manipulation",
+          "pdf_start": 57,
+          "pdf_end": 64
+        },
+        {
+          "title": "Chapter 3: Analyzing and Managing Networks",
+          "pdf_start": 67,
+          "pdf_end": 74
+        },
+        {
+          "title": "Chapter 4: Adding and Removing Software",
+          "pdf_start": 77,
+          "pdf_end": 85
+        },
+        {
+          "title": "Chapter 5: Controlling File and Directory Permissions",
+          "pdf_start": 87,
+          "pdf_end": 97
+        },
+        {
+          "title": "Chapter 6: Process Management",
+          "pdf_start": 99,
+          "pdf_end": 108
+        },
+        {
+          "title": "Chapter 7: Managing User Environment Variables",
+          "pdf_start": 109,
+          "pdf_end": 116
+        },
+        {
+          "title": "Chapter 9: Compressing and Archiving",
+          "pdf_start": 131,
+          "pdf_end": 136
+        },
+        {
+          "title": "Filesystem and Storage",
+          "pdf_start": 139,
+          "pdf_end": 156
+        },
+        {
+          "title": "Chapter 12: Using and Abusing Services",
+          "pdf_start": 159,
+          "pdf_end": 175
+        },
+        {
+          "title": "Chapter 16: Automating Tasks with Job Scheduling",
+          "pdf_start": 211,
+          "pdf_end": 218
+        }
+      ]
+    }
+  ]
+}
