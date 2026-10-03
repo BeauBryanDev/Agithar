@@ -84,6 +84,14 @@ class Settings(BaseSettings):
         ),
     )
 
+    # RAG: embeddings and vector store
+    openai_api_key: SecretStr | None = None
+    pinecone_api_key: SecretStr | None = None
+    pinecone_index_name: str = "agithar-knowledge"
+    pinecone_index_host: str | None = None
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimension: int = Field(default=1536, gt=0)
+
     @field_validator("*", mode="after")
     @classmethod
     def resolve_relative_path(cls, value: Any) -> Any:
@@ -119,9 +127,16 @@ class Settings(BaseSettings):
 
         return value
 
-    @field_validator("abuseipdb_api_key", mode="after")
+    @field_validator(
+        "abuseipdb_api_key",
+        "shodan_api_key",
+        "virustotal_api_key",
+        "openai_api_key",
+        "pinecone_api_key",
+        mode="after",
+    )
     @classmethod
-    def empty_abuseipdb_key_is_unset(
+    def empty_key_is_unset(
         cls, value: SecretStr | None
     ) -> SecretStr | None:
 
@@ -129,29 +144,24 @@ class Settings(BaseSettings):
             return None
 
         return value
-    
-    @field_validator("shodan_api_key", mode="after")
-    @classmethod
-    def empty_shodan_key_is_unset(
-        cls, value: SecretStr | None
-    ) -> SecretStr | None:
 
-        if value is None or not value.get_secret_value().strip():
-            return None
-        
-        return value
-    
-    @field_validator("virustotal_api_key", mode="after")
+    @field_validator("pinecone_index_host", mode="after")
     @classmethod
-    def empty_virustotal_key_is_unset(
-        cls, value: SecretStr | None
-    ) -> SecretStr | None:
-
-        if value is None or not value.get_secret_value().strip():
+    def check_pinecone_host(cls, value: str | None) -> str | None:
+        # The API key is sent to this host, so it must be a Pinecone host.
+        if value is None or not value.strip():
             return None
-        
-        return value
-    
+
+        host = value.strip().rstrip("/")
+        hostname = host.removeprefix("https://")
+
+        if not host.startswith("https://") or "/" in hostname:
+            raise ValueError("pinecone_index_host must be a bare https host")
+
+        if not hostname.endswith(".pinecone.io"):
+            raise ValueError("pinecone_index_host must end in .pinecone.io")
+
+        return host
 
     @field_validator("cors_origins", mode="after")
     @classmethod
