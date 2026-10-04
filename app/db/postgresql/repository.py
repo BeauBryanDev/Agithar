@@ -2,6 +2,7 @@
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.postgresql.incidents import IOC, Incident
@@ -23,45 +24,15 @@ def extract_iocs(case: dict[str, Any]) -> list[tuple[str, str]]:
         agent = context.get("user_agent_sha256")
 
         if path:
-            found.append((IOC_TYPE_URL, path[:MAX_IOC_VALUE_CHARS]))
+            found.append((IOC_TYPE_URL, 
+                          path[:MAX_IOC_VALUE_CHARS])
+                         )
 
         if agent:
             found.append((IOC_TYPE_USER_AGENT, agent))
 
     return list(dict.fromkeys(found))
 
-
-def save_incident(session: Session, case: dict[str, Any]) -> Incident:
-    incident = Incident(
-        case_key=case["case_id"],
-        ip=case["ip"],
-        severity=case["severity"],
-        composite_score=case["composite_score"],
-        num_sensors=case["num_sensors"],
-        num_strong_sensors=case["num_strong_sensors"],
-        contributing_sensors=case["contributing_sensors"],
-        sensor_scores=case["sensor_scores"],
-        event_counts=case["event_counts"],
-        evidence=case["evidence"],
-    )
-    session.add(incident)
-    session.flush()
-
-    for ioc_type, value in extract_iocs(case):
-        session.add(
-            IOC(
-                incident_id=incident.incident_id,
-                ioc_type=ioc_type,
-                value=value,
-            )
-        )
-
-    session.commit()
-    session.refresh(incident)
-
-    return incident
-
-# read incidents by case key
 
 def get_incident_by_case_key(session: Session, 
                              case_key: str
@@ -72,8 +43,81 @@ def get_incident_by_case_key(session: Session,
         .filter(Incident.case_key == case_key)
         .one_or_none()
     )
-    
-    
+
+
+def apply_case(incident: Incident, 
+               case: dict[str, Any]
+               ) -> None:
+    incident.ip = case["ip"]
+    incident.severity = case["severity"]
+    incident.composite_score = case["composite_score"]
+    incident.num_sensors = case["num_sensors"]
+    incident.num_strong_sensors = case["num_strong_sensors"]
+    incident.contributing_sensors = case["contributing_sensors"]
+    incident.sensor_scores = case["sensor_scores"]
+    incident.event_counts = case["event_counts"]
+    incident.evidence = case["evidence"]
+
+
+def add_missing_iocs(
+    session: Session,
+    incident: Incident, 
+    case: dict[str, Any]
+) -> None:
+    known = {(ioc.ioc_type, ioc.value) for ioc in incident.iocs}
+
+    for ioc_type, value in extract_iocs(case):
+        if (ioc_type, value) not in known:
+            session.add(
+                IOC(
+                    incident_id=incident.incident_id,
+                    ioc_type=ioc_type,
+                    value=value,
+                )
+            )
+
+
+def flush_incident(
+    session: Session, 
+    incident: Incident, 
+    case: dict[str, Any]
+) -> Incident:
+    # Two workers may create the same window at once: the unique case_key
+    # rejects the second insert, which then becomes an update.
+    try:
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        incident = get_incident_by_case_key(session, case["case_id"])
+
+        if incident is None:
+            raise
+
+        apply_case(incident, case)
+        session.flush()
+
+    return incident
+
+
+def save_incident(session: Session, case: dict[str, Any]) -> Incident:
+    # A window can escalate again when its severity rises: same case_key,
+    # so the existing incident is updated instead of inserted twice.
+    incident = get_incident_by_case_key(session, case["case_id"])
+
+    if incident is None:
+        incident = Incident(case_key=case["case_id"])
+        session.add(incident)
+
+    apply_case(incident, case)
+    incident = flush_incident(session, incident, case)
+    add_missing_iocs(session, incident, case)
+
+    session.commit()
+    session.refresh(incident)
+
+    return incident
+
+
 def list_incidents(
     session: Session,
     column: Any,

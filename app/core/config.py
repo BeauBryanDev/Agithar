@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,8 @@ ENV_FILE = PROJECT_ROOT / ".env"
 MODELS_DIR = Path("models")
 CORS_SEPARATOR = ","
 JWT_SECRET_MIN_LENGTH = 32
+TELEGRAM_TOKEN_PATTERN = re.compile(r"^[0-9]{6,12}:[A-Za-z0-9_-]{35}$")
+TELEGRAM_CHAT_ID_PATTERN = re.compile(r"^-?[0-9]{5,20}$")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
@@ -94,6 +97,10 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = Field(default=1536, gt=0)
 
+    # TELEGRAM ALERTS (bot CyberSoc, @Agithatbot)
+    telegram_bot_token: SecretStr | None = None
+    telegram_chat_id: str | None = None
+
     @field_validator("*", mode="after")
     @classmethod
     def resolve_relative_path(cls, value: Any) -> Any:
@@ -135,6 +142,7 @@ class Settings(BaseSettings):
         "virustotal_api_key",
         "openai_api_key",
         "pinecone_api_key",
+        "telegram_bot_token",
         mode="after",
     )
     @classmethod
@@ -146,6 +154,33 @@ class Settings(BaseSettings):
             return None
 
         return value
+
+    @field_validator("telegram_bot_token", mode="after")
+    @classmethod
+    def check_telegram_token(
+        cls, value: SecretStr | None
+    ) -> SecretStr | None:
+        # The token goes into a URL path, so only the exact shape is allowed.
+        if value is None:
+            return None
+
+        if not TELEGRAM_TOKEN_PATTERN.match(value.get_secret_value()):
+            raise ValueError("telegram_bot_token has an invalid format")
+
+        return value
+
+    @field_validator("telegram_chat_id", mode="after")
+    @classmethod
+    def check_telegram_chat_id(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+
+        chat_id = value.strip()
+
+        if not TELEGRAM_CHAT_ID_PATTERN.match(chat_id):
+            raise ValueError("telegram_chat_id must be a number")
+
+        return chat_id
 
     @field_validator("pinecone_index_host", mode="after")
     @classmethod
