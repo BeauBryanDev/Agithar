@@ -6,6 +6,11 @@ from typing import Any
 from app.core.logging import get_logger
 from app.correlator.decision import decide
 from app.correlator.scoring import compute_composite
+from app.rag.mitre_attack import (
+    MitreError,
+    attack_version,
+    check_technique,
+)
 from app.schemas.analysis import (
     AgentVerdict,
     AnalyzeRequest,
@@ -13,6 +18,7 @@ from app.schemas.analysis import (
     DetectorResult,
     EvidenceRef,
     MAX_EVIDENCE_ITEMS,
+    MAX_SUMMARY_CHARS,
 )
 from app.sensors.base import SensorResult
 from app.sensors.registry import SensorRegistry
@@ -20,6 +26,7 @@ from app.sensors.registry import SensorRegistry
 MAX_LINES = 2000
 MAX_LINE_CHARS = 8192
 MAX_RECON_IPS = 20
+MITRE_NOTE_ROOM = 300
 MAX_EVENT_TOKENS = 10000
 MEDIUM_CONFIDENCE_FLOOR = 0.7
 HTTP_SENSOR = "http_payload_sensor"
@@ -190,6 +197,62 @@ def enforce_verdict(verdict: AgentVerdict,
             "verdict": "needs_human" if needs_human else verdict.verdict,
         }
     )
+
+
+def with_mitre_note(
+    verdict: AgentVerdict, technique: str | None, note: str
+) -> AgentVerdict:
+    # The summary is rebuilt through the schema, so it is sanitized again.
+    room = MAX_SUMMARY_CHARS - MITRE_NOTE_ROOM
+    summary = verdict.summary[:room].rstrip() + " " + note
+
+    return AgentVerdict.model_validate(
+        {
+            **verdict.model_dump(),
+            "mitre_technique": technique,
+            "summary": summary,
+        }
+    )
+
+
+def check_mitre_technique(verdict: AgentVerdict) -> AgentVerdict:
+    claimed = verdict.mitre_technique
+
+    if claimed is None:
+        return verdict
+
+    try:
+        result = check_technique(claimed)
+        version = attack_version()
+    except MitreError:
+        logger.warning("mitre technique could not be checked")
+        note = f"Note: MITRE technique {claimed} could not be verified."
+
+        return with_mitre_note(verdict, claimed, note)
+
+    if result["status"] == "active":
+        return verdict
+
+    logger.info(
+        "mitre technique corrected",
+        extra={"status": result["status"]},
+    )
+
+    if result["status"] == "revoked" and result["replacement"]:
+        note = (
+            f"Note: MITRE technique {claimed} was revoked in ATT&CK "
+            f"v{version} and replaced by {result['replacement']} "
+            f"({result['replacement_name']})."
+        )
+
+        return with_mitre_note(verdict, result["replacement"], note)
+
+    note = (
+        f"Note: MITRE technique {claimed} does not exist in ATT&CK "
+        f"v{version} and was removed."
+    )
+
+    return with_mitre_note(verdict, None, note)
 
 
 def build_text(

@@ -16,8 +16,8 @@ MAX_SUMMARY_CHARS = 2000
 MAX_EVIDENCE_ITEMS = 50
 MAX_EVIDENCE_REFS = 100
 MAX_ID_CHARS = 64
-MITRE_PATTERN = r"^T\d{4}(\.\d{3})?$"
-OWASP_PATTERN = r"^A\d{2}:2025$"
+MITRE_PATTERN = r"^T[0-9]{4}(\.[0-9]{3})?$"
+OWASP_PATTERN = r"^A[0-9]{2}:2025$"
 SESSION_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
 
 VERDICT = Literal["confirmed", "false_positive", "needs_human"]
