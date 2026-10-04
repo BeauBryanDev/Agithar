@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     exploitdb_csv_path: Path = (
         Path("data") / "exploitdb" / "files_exploits.csv"
     )
+    mitre_bundle_path: Path = Path("data") / "enterprise-attack.json"
+    mitre_index_path: Path = Path("data") / "mitre" / "attack_index.json"
     cors_origins: str = "http://localhost:5173" 
     # TODO: agithar.tensorkingdom.com when it is deployed.
     session_ttl_seconds: int = Field(default=3600, gt=0)
