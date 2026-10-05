@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     agent_effort: Literal["low", "medium", "high"] = "medium"
     agent_max_tokens: int = Field(default=4096, ge=256, le=32000)
     agent_max_tool_turns: int = Field(default=8, ge=1, le=20)
+    # Prompt caching of the system prompt, tools and conversation (Anthropic).
+    agent_prompt_cache: bool = True
+    # Server-side fallback when the model declines a request (refusal).
+    agent_fallbacks: bool = True
 
     # SECRETARIES: the report writers (OpenAI Responses API). The model id is
     # the user's choice and is not verified here. Reasoning tokens count
@@ -121,6 +125,8 @@ class Settings(BaseSettings):
     dispatch_queue_limit: int = Field(default=20, ge=1, le=200)
     dispatch_case_timeout_seconds: int = Field(default=300, ge=30, le=1800)
     dispatch_max_cases_per_hour: int = Field(default=30, ge=1, le=1000)
+    # Re-run the recent incidents still open when the server starts.
+    recover_on_startup: bool = True
 
     # TELEGRAM ALERTS (bot CyberSoc, @Agithatbot)
     telegram_bot_token: SecretStr | None = None

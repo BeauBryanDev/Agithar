@@ -4,6 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.agent.dispatcher import get_dispatcher
+from app.agent.recovery import recover_open_cases
+from app.agent.tools import analyze_input
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.correlator.correlator import Correlator
@@ -34,6 +37,22 @@ async def load_sensors() -> SensorRegistry:
     return registry
 
 
+async def recover(settings: Settings) -> None:
+    # Recovery must never stop the server from starting.
+    if not settings.recover_on_startup:
+        logger.info("startup recovery is disabled")
+        return
+
+    try:
+        count = await recover_open_cases(get_dispatcher())
+
+    except Exception as exc:
+        logger.error("startup recovery failed: %s", type(exc).__name__)
+        return
+
+    logger.info("startup recovery: %d open cases resubmitted", count)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -42,6 +61,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.settings = settings
     app.state.registry = await load_sensors()
     app.state.correlator = Correlator()
+    analyze_input.set_registry(app.state.registry)
+    app.state.dispatcher = get_dispatcher()
+    await recover(settings)
     logger.info("startup complete: sensors=%s", 
                 app.state.registry.names
                 )
@@ -50,6 +72,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
         
     finally:
+        await app.state.dispatcher.shutdown()
+        analyze_input.set_registry(None)
+        app.state.dispatcher = None
         app.state.correlator = None
         app.state.registry = None
         logger.info("shutdown complete")

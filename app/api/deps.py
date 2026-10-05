@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.agent.dispatcher import Dispatcher
 from app.core.auth import get_current_token_data, unauthorized
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
@@ -61,6 +62,15 @@ def get_correlator(request: Request) -> Correlator:
     return correlator
 
 
+def get_dispatcher(request: Request) -> Dispatcher:
+    dispatcher = getattr(request.app.state, "dispatcher", None)
+
+    if dispatcher is None:
+        raise service_unavailable("Agent dispatcher is unavailable")
+
+    return dispatcher
+
+
 def get_current_user(
     token_data: Annotated[TokenData, Depends(get_current_token_data)],
     db: Annotated[Session, Depends(get_db)],
@@ -99,3 +109,4 @@ CurrentAdmin = Annotated[User, Depends(require_admin)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
 Registry = Annotated[SensorRegistry, Depends(get_registry)]
 CorrelatorDep = Annotated[Correlator, Depends(get_correlator)]
+DispatcherDep = Annotated[Dispatcher, Depends(get_dispatcher)]
