@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -214,3 +215,70 @@ def mark_notified(session: Session,
     if incident is not None:
         incident.notified = True
         session.commit()
+
+
+MAX_DASHBOARD_ROWS = 5000
+STATUSES = ("open", "confirmed", "false_positive", "needs_human", "closed")
+
+
+def list_recent_incidents(
+    session: Session,
+    severity: str | None = None,
+    status: str | None = None,
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[Incident], int]:
+    if severity is not None and severity not in SEVERITIES:
+        raise ValueError("severity must be low, medium or high")
+
+    if status is not None and status not in STATUSES:
+        raise ValueError("unknown status")
+
+    skip = max(skip, 0)
+    limit = min(max(limit, 1), MAX_PAGE_SIZE)
+    conditions = []
+
+    if severity is not None:
+        conditions.append(Incident.severity == severity)
+
+    if status is not None:
+        conditions.append(Incident.status == status)
+
+    total = session.scalar(
+        select(func.count()).select_from(Incident).where(*conditions)
+    )
+    items = session.scalars(
+        select(Incident)
+        .where(*conditions)
+        .order_by(Incident.created_at.desc(), Incident.incident_id.desc())
+        .offset(skip)
+        .limit(limit)
+    ).all()
+
+    return list(items), total or 0
+
+
+def incidents_since(
+    session: Session, 
+    since: datetime, 
+    max_rows: int | None = None
+) -> list[Any]:
+    # Only the columns the dashboard needs, newest first, never more than
+    # max_rows (the caller can tell by the length).
+    limit = MAX_DASHBOARD_ROWS if max_rows is None else max_rows
+
+    return list(
+        session.execute(
+            select(
+                Incident.created_at,
+                Incident.severity,
+                Incident.composite_score,
+                Incident.status,
+                Incident.contributing_sensors,
+                Incident.verdict,
+            )
+            .where(Incident.created_at >= since)
+            .order_by(Incident.created_at.desc())
+            .limit(limit)
+        ).all()
+    )

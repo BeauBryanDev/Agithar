@@ -32,8 +32,9 @@ def build_context(
     target: str | None,
     user_agent: str | None,
     status: int | None,
+    host: str | None = None,
 ) -> EventContext | None:
-    fields = (method, target, user_agent, status)
+    fields = (method, target, user_agent, status, host)
 
     # all is None: no context to build, return None
     if all(field is None for field in fields):
@@ -42,7 +43,8 @@ def build_context(
     return EventContext.from_raw(method, 
                                  target, 
                                  user_agent, 
-                                 status)
+                                 status,
+                                 host)
 
 
 def persist_case(
@@ -128,6 +130,7 @@ def ingest_result(
     target: str | None = None,
     user_agent: str | None = None,
     status: int | None = None,
+    host: str | None = None,
 ) -> EventOutcome:
     
     event = event_from_result(result, 
@@ -137,7 +140,8 @@ def ingest_result(
         context = build_context(method, 
                                 target, 
                                 user_agent, 
-                                status
+                                status,
+                                host
                                 )
         
     except ValueError:
