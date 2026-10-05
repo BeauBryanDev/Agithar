@@ -102,7 +102,9 @@ def flush_incident(
     return incident
 
 
-def save_incident(session: Session, case: dict[str, Any]) -> Incident:
+def save_incident(session: Session, 
+                  case: dict[str, Any]
+                  ) -> Incident:
     # A window can escalate again when its severity rises: same case_key,
     # so the existing incident is updated instead of inserted twice.
     incident = get_incident_by_case_key(session, case["case_id"])
@@ -204,7 +206,9 @@ def save_report(
     return incident
 
 
-def mark_notified(session: Session, incident_id: int) -> None:
+def mark_notified(session: Session, 
+                  incident_id: int
+                  ) -> None:
     incident = session.get(Incident, incident_id)
 
     if incident is not None:
