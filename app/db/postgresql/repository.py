@@ -202,3 +202,11 @@ def save_report(
     session.refresh(incident)
 
     return incident
+
+
+def mark_notified(session: Session, incident_id: int) -> None:
+    incident = session.get(Incident, incident_id)
+
+    if incident is not None:
+        incident.notified = True
+        session.commit()

@@ -1,7 +1,7 @@
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -99,6 +99,14 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = Field(default=1536, gt=0)
 
+    # AGENT: master LLM (Claude API). No sampling settings on purpose:
+    # temperature, top_p and top_k are rejected by this model.
+    anthropic_api_key: SecretStr | None = None
+    agent_model: str = "claude-sonnet-5-5"
+    agent_effort: Literal["low", "medium", "high"] = "medium"
+    agent_max_tokens: int = Field(default=4096, ge=256, le=32000)
+    agent_max_tool_turns: int = Field(default=8, ge=1, le=20)
+
     # TELEGRAM ALERTS (bot CyberSoc, @Agithatbot)
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
@@ -144,6 +152,7 @@ class Settings(BaseSettings):
         "nvd_api_key",
         "virustotal_api_key",
         "openai_api_key",
+        "anthropic_api_key",
         "pinecone_api_key",
         "telegram_bot_token",
         mode="after",

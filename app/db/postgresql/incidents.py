@@ -13,10 +13,15 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     incident_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+        Integer, 
+        primary_key=True, 
+        autoincrement=True
     )
     case_key: Mapped[str] = mapped_column(
-        String(80), unique=True, index=True, nullable=False
+        String(80), 
+        unique=True, 
+        index=True, 
+        nullable=False
     )
     ip: Mapped[str] = mapped_column(String(45), index=True, nullable=False)
     severity: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -85,17 +90,22 @@ class ActionTaken(Base):
     __tablename__ = "actions_taken"
 
     action_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+        Integer, 
+        primary_key=True, 
+        autoincrement=True
     )
     incident_id: Mapped[int] = mapped_column(
-        ForeignKey("incidents.incident_id"), index=True, nullable=False
+        ForeignKey("incidents.incident_id"), 
+        index=True, nullable=False
     )
     tool_name: Mapped[str] = mapped_column(String(50), nullable=False)
     params: Mapped[Optional[dict]] = mapped_column(JSONB)
     result: Mapped[Optional[dict]] = mapped_column(JSONB)
     performed_by: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), 
+        server_default=func.now(), 
+        nullable=False
     )
 
     incident: Mapped["Incident"] = relationship(back_populates="actions")
