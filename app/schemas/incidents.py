@@ -82,3 +82,46 @@ class IncidentStatusUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     
+
+
+class FeedItem(BaseModel):
+    # One line of the detection feed: an incident with what the master
+    # concluded (if it has), flattened for a table.
+    incident_id: int
+    case_key: str
+    ip: str
+    severity: SEVERITY
+    composite_score: float
+    status: STATUS
+    created_at: datetime
+    sensors: list[str] = Field(default_factory=list)
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    mitre_technique: Optional[str] = None
+    notified: bool = False
+
+    @classmethod
+    def from_incident(cls, incident: Any) -> "FeedItem":
+        raw = incident.verdict
+        verdict = raw if isinstance(raw, dict) else {}
+        confidence = verdict.get("confidence")
+
+        return cls(
+            incident_id=incident.incident_id,
+            case_key=incident.case_key,
+            ip=incident.ip,
+            severity=incident.severity,
+            composite_score=incident.composite_score,
+            status=incident.status,
+            created_at=incident.created_at,
+            sensors=list(incident.contributing_sensors or []),
+            confidence=confidence if isinstance(confidence, float) else None,
+            mitre_technique=verdict.get("mitre_technique"),
+            notified=bool(incident.notified),
+        )
+
+
+class FeedList(BaseModel):
+    items: list[FeedItem]
+    total: int = Field(ge=0)
+    skip: int = Field(ge=0)
+    limit: int = Field(ge=1, le=100)

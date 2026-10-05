@@ -151,3 +151,57 @@ class CVELookupResult(BaseModel):
         return clean_text(str(value), 300)
 
     model_config = ConfigDict(extra="forbid")
+
+
+# What the frontend receives (types/vulnerability.ts): its severity scale has
+# no "none", and a record may have no CVSS at all.
+UI_SEVERITY = Literal["low", "medium", "high", "critical"]
+MAX_AFFECTED_ITEMS = 10
+
+
+class CVSSView(BaseModel):
+    base_score: float = Field(ge=0.0, le=10.0)
+    severity: UI_SEVERITY
+    vector: Optional[str] = Field(default=None, max_length=128)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class VulnRecord(BaseModel):
+    cve_id: str = Field(pattern=CVE_ID_PATTERN)
+    cvss: Optional[CVSSView] = None
+    affected_products: list[str] = Field(
+        default_factory=list, max_length=MAX_AFFECTED_ITEMS
+    )
+    summary: str = Field(max_length=MAX_SUMMARY_CHARS + 32)
+    published: Optional[datetime] = None
+    vendor: Optional[str] = Field(default=None, max_length=120)
+    vuln_type: Optional[str] = Field(default=None, max_length=120)
+    cwes: list[str] = Field(default_factory=list, max_length=MAX_CWES)
+    owasp_categories: list[str] = Field(
+        default_factory=list, max_length=MAX_CWES
+    )
+    # Exploit-DB metadata only (id, title, link), never exploit code.
+    exploits: list[ExploitReference] = Field(
+        default_factory=list, max_length=MAX_EXPLOITS
+    )
+    references: list[str] = Field(
+        default_factory=list, max_length=MAX_REFERENCES
+    )
+    source: LOOKUP_SOURCE
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class VulnSearchResponse(BaseModel):
+    results: list[VulnRecord] = Field(default_factory=list, max_length=20)
+    # Why there is nothing, or how fresh the data is (dataset date, live
+    # lookup unavailable, ...).
+    note: Optional[str] = Field(default=None, max_length=400)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def sanitize_note(cls, value: Optional[str]) -> Optional[str]:
+        return None if value is None else clean_text(str(value), 300)
