@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     )
     mitre_bundle_path: Path = Path("data") / "enterprise-attack.json"
     mitre_index_path: Path = Path("data") / "mitre" / "attack_index.json"
+    cve_db_path: Path = Path("data") / "cve" / "cve.sqlite3"
     cors_origins: str = "http://localhost:5173" 
     # TODO: agithar.tensorkingdom.com when it is deployed.
     session_ttl_seconds: int = Field(default=3600, gt=0)
@@ -82,6 +83,7 @@ class Settings(BaseSettings):
     # THREAT INTELLIGENCE API KEYS
     abuseipdb_api_key: SecretStr | None = None
     shodan_api_key: SecretStr | None = None
+    nvd_api_key: SecretStr | None = None
     virustotal_api_key: SecretStr | None = Field(
         default=None,
         validation_alias=AliasChoices(
@@ -139,6 +141,7 @@ class Settings(BaseSettings):
     @field_validator(
         "abuseipdb_api_key",
         "shodan_api_key",
+        "nvd_api_key",
         "virustotal_api_key",
         "openai_api_key",
         "pinecone_api_key",
