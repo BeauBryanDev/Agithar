@@ -9,6 +9,8 @@ from app.security.sanitize import sanitize_string
 
 MAX_SENSOR_NAME_CHARS = 64
 MAX_PATH_CHARS = 512
+MAX_HOST_CHARS = 255
+HOST_NAME = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,253}[a-z0-9])?$")
 MAX_USER_AGENT_CHARS = 1024
 SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 HTTP_METHODS = Literal[
@@ -32,8 +34,22 @@ class EventContext(BaseModel):
     path: Optional[str] = Field(default=None, max_length=MAX_PATH_CHARS)
     user_agent_sha256: Optional[str] = None
     status: Optional[int] = Field(default=None, ge=100, le=599)
+    # The site the request was for (the Host the web server saw).
+    host: Optional[str] = Field(default=None, max_length=MAX_HOST_CHARS)
 
     model_config = ConfigDict(extra="forbid")
+
+    @field_validator("host", mode="before")
+    @classmethod
+    def clean_host(cls, value: Optional[str]) -> Optional[str]:
+        # The Host header is attacker-controlled. A strange one is dropped,
+        # never an error: rejecting the event would let a bad header hide it.
+        if not isinstance(value, str):
+            return None
+
+        host = sanitize_string(value, MAX_HOST_CHARS).strip().lower()
+
+        return host if HOST_NAME.match(host) else None
 
     @field_validator("path")
     @classmethod
@@ -60,6 +76,7 @@ class EventContext(BaseModel):
         target: Optional[str] = None,
         user_agent: Optional[str] = None,
         status: Optional[int] = None,
+        host: Optional[str] = None,
     ) -> "EventContext":
         verb = (method or "").upper()
         agent = (user_agent or "")[:MAX_USER_AGENT_CHARS]
@@ -69,6 +86,7 @@ class EventContext(BaseModel):
             path=(target or "")[:MAX_PATH_CHARS] or None,
             user_agent_sha256=sha256_hex(agent) if agent else None,
             status=status,
+            host=host,
         )
 
 

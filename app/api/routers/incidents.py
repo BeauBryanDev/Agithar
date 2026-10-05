@@ -5,7 +5,12 @@ from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.db.postgresql import repository
-from app.schemas.incidents import IncidentList, IncidentRead
+from app.schemas.incidents import (
+    FeedItem,
+    FeedList,
+    IncidentList,
+    IncidentRead,
+)
 
 MAX_CASE_KEY_CHARS = 80
 DEFAULT_PAGE_SIZE = 50
@@ -45,7 +50,38 @@ def build_list(
     items, total = result
 
     return IncidentList(
-        items=items, total=total, skip=skip, limit=limit
+        items=items, 
+        total=total, 
+        skip=skip,
+        limit=limit
+    )
+
+
+@router.get("", response_model=FeedList)
+def list_recent(
+    _user: CurrentUser,
+    db: DbSession,
+    skip: Skip = 0,
+    limit: Limit = DEFAULT_PAGE_SIZE,
+    severity: Annotated[str | None, Query(max_length=10)] = None,
+    status: Annotated[str | None, Query(max_length=20)] = None,
+) -> FeedList:
+    # The detection feed: newest incidents first, optional filters.
+    try:
+        items, total = repository.list_recent_incidents(
+            db, severity, status, skip, limit
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="Invalid severity or status"
+        ) from exc
+
+    return FeedList(
+        items=[FeedItem.from_incident(item) for item in items],
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -88,7 +124,9 @@ def list_by_severity(
 
 @router.get("/{case_key}", response_model=IncidentRead)
 def get_incident(
-    case_key: CaseKey, _user: CurrentUser, db: DbSession
+    case_key: CaseKey, 
+    _user: CurrentUser,
+    db: DbSession
 ) -> IncidentRead:
     
     incident = repository.get_incident_by_case_key(db, case_key)
