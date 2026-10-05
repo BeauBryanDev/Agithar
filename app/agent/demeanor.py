@@ -4,7 +4,7 @@ from typing import Any
 
 from app.security.sanitize import escape_json, sanitize_string
 
-PROMPT_PATH = Path(__file__).resolve().parent / "prompt.md"
+PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "master_prompt.md"
 
 NO_IP_PLACEHOLDER = "N/A (free-text demo input, no IP association in chat mode)"
 MAX_EVIDENCE_CHARS = 12000

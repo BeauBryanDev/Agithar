@@ -1,36 +1,53 @@
-
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from app.core.config import get_settings
 
-MODEL = "gpt-6-luna"
-REASONING_EFFORT = "medium"
-MAX_OUTPUT_TOKENS = 2048
-
-_client: OpenAI | None = None
+REQUEST_TIMEOUT_SECONDS = 90.0
+MAX_RETRIES = 2
 
 
-def get_openai_client() -> OpenAI:
+class SecretaryConfigError(Exception):
+    pass
+
+
+_client: AsyncOpenAI | None = None
+
+
+def get_openai_client() -> AsyncOpenAI:
     global _client
 
     if _client is None:
-        settings = get_settings()
-        _client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
+        key = get_settings().openai_api_key
+
+        if key is None:
+            raise SecretaryConfigError("openai api key is not configured")
+
+        _client = AsyncOpenAI(
+            api_key=key.get_secret_value(),
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            max_retries=MAX_RETRIES,
+        )
 
     return _client
 
 
-def generate_secretary_report(system_prompt: str, user_content: str) -> str:
+async def generate_secretary_report(
+    system_prompt: str, user_content: str
+) -> str:
+    settings = get_settings()
     client = get_openai_client()
 
-    response = client.responses.create(
-        model=MODEL,
-        reasoning={"effort": REASONING_EFFORT},
-        max_output_tokens=MAX_OUTPUT_TOKENS,
-        input=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
+    response = await client.responses.create(
+        model=settings.secretary_model,
+        instructions=system_prompt,
+        input=user_content,
+        reasoning={"effort": settings.secretary_effort},
+        max_output_tokens=settings.secretary_max_output_tokens,
+        store=False,
     )
+
+    # An incomplete response (the cap was reached) has no usable draft.
+    if response.status != "completed":
+        return ""
 
     return response.output_text

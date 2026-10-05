@@ -107,6 +107,21 @@ class Settings(BaseSettings):
     agent_max_tokens: int = Field(default=4096, ge=256, le=32000)
     agent_max_tool_turns: int = Field(default=8, ge=1, le=20)
 
+    # SECRETARIES: the report writers (OpenAI Responses API). The model id is
+    # the user's choice and is not verified here. Reasoning tokens count
+    # against the output cap, so it is well above a draft's length.
+    secretary_model: str = "gpt-6-luna"
+    secretary_effort: Literal["low", "medium", "high"] = "medium"
+    secretary_max_output_tokens: int = Field(default=4096, ge=512, le=16000)
+
+    # DISPATCHER: how escalated cases are run through the agent graph. A case
+    # that cannot run (queue full, hourly cap, crash, timeout) still alerts
+    # the admin with a pending verdict.
+    dispatch_max_concurrent: int = Field(default=2, ge=1, le=8)
+    dispatch_queue_limit: int = Field(default=20, ge=1, le=200)
+    dispatch_case_timeout_seconds: int = Field(default=300, ge=30, le=1800)
+    dispatch_max_cases_per_hour: int = Field(default=30, ge=1, le=1000)
+
     # TELEGRAM ALERTS (bot CyberSoc, @Agithatbot)
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
