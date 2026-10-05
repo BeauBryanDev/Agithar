@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.postgresql.incidents import IOC, Incident
+from app.security.sanitize import sanitize_string
 
 IOC_TYPE_IP = "ip"
 IOC_TYPE_URL = "url"
@@ -13,6 +14,8 @@ IOC_TYPE_USER_AGENT = "user_agent"
 MAX_IOC_VALUE_CHARS = 255
 MAX_PAGE_SIZE = 100
 SEVERITIES = ("low", "medium", "high")
+MAX_REPORT_CHARS = 20000
+VERDICT_STATUSES = ("confirmed", "false_positive", "needs_human")
 
 
 def extract_iocs(case: dict[str, Any]) -> list[tuple[str, str]]:
@@ -168,3 +171,34 @@ def list_incidents_by_severity(
     return list_incidents(session, 
                           Incident.severity, 
                           severity, skip, limit)
+
+
+def save_report(
+    session: Session,
+    incident_id: int,
+    verdict: dict[str, Any],
+    report_md: str | None,
+    notified: bool,
+) -> Incident:
+    incident = session.get(Incident, incident_id)
+
+    if incident is None:
+        raise ValueError("incident not found")
+
+    if verdict["verdict"] not in VERDICT_STATUSES:
+        raise ValueError("unknown verdict")
+
+    incident.verdict = verdict
+    incident.status = verdict["verdict"]
+    incident.notified = notified
+    incident.report_md = (
+        sanitize_string(report_md, 
+                        MAX_REPORT_CHARS, 
+                        keep_newlines=True
+                        ) if report_md else None    
+    )
+
+    session.commit()
+    session.refresh(incident)
+
+    return incident

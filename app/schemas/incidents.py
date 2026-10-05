@@ -57,6 +57,9 @@ class IncidentRead(IncidentSummary):
     sensor_scores: dict[str, float]
     event_counts: dict[str, int]
     evidence: list[dict[str, Any]]
+    verdict: Optional[dict[str, Any]] = None
+    report_md: Optional[str] = None
+    notified: bool = False
     updated_at: datetime
     iocs: list[IOCRead] = Field(default_factory=list)
     actions: list[ActionTakenRead] = Field(default_factory=list)
