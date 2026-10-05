@@ -18,6 +18,7 @@ NO_VERDICT = {
 
 
 def short(value: Any, limit: int = SHORT_CHARS) -> str:
+    # The verdict is always sanitized, the drafts are not.
     return sanitize_string(str(value), limit)
 
 
@@ -42,7 +43,8 @@ def draft_section(title: str,
         demote_headings(
             sanitize_string(draft, 
                             MAX_DRAFT_CHARS, 
-                            keep_newlines=True)
+                            keep_newlines=True
+                            )
             
         ) if draft else NO_DRAFT
     )

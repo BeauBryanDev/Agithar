@@ -211,4 +211,5 @@ async def notify_admin(
     
     return await send_message(format_alert(case, 
                                            verdict, 
+                                           incident_id
                                            ))
