@@ -118,13 +118,21 @@ def build_findings(
     judgment = run.judgment or DEFAULT_JUDGMENT
 
     try:
-        return make_findings(case, verdict, run, judgment, incident_saved)
+        return make_findings(case, 
+                             verdict, 
+                             run, 
+                             judgment, 
+                             incident_saved)
 
     except ValidationError:
         logger.error("judgment rejected, using the default judgment")
 
         return make_findings(
-            case, verdict, run, DEFAULT_JUDGMENT, incident_saved
+            case, 
+            verdict,
+            run, 
+            DEFAULT_JUDGMENT, 
+            incident_saved
         )
 
 
@@ -136,7 +144,11 @@ def make_findings(
     incident_saved: bool,
 ) -> dict[str, Any]:
     blue = build_blue_findings(
-        case, verdict, run.records, judgment["blue_actions"], incident_saved
+        case, 
+        verdict, 
+        run.records, 
+        judgment["blue_actions"], 
+        incident_saved
     )
     red = build_red_findings(
         case,
@@ -172,6 +184,8 @@ async def master_investigate_node(state: AutomatonState) -> dict[str, Any]:
     # A false positive has no findings: it skips the secretaries.
     if verdict.verdict != "false_positive":
         saved = incident_id is not None
-        update.update(build_findings(case, verdict, run, saved))
+        update.update(build_findings(case, 
+                                     verdict, run, 
+                                     saved))
 
     return update

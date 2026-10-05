@@ -1,4 +1,5 @@
 
+import json
 import math
 import unicodedata
 from typing import Any
@@ -97,3 +98,14 @@ def sanitize_detail(detail: dict[str, Any],
 
     return cleaned
 
+
+def escape_json(data: Any) -> str:
+    # JSON for text that goes inside an XML-like tag: the angle brackets and
+    # the ampersand are escaped, so the data can never close the tag.
+    body = json.dumps(data, ensure_ascii=True, default=str)
+
+    return (
+        body.replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
