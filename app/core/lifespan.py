@@ -9,6 +9,7 @@ from app.agent.recovery import recover_open_cases
 from app.agent.tools import analyze_input
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
+from app.ingestion.nginx_log_feed import create_feed
 from app.correlator.correlator import Correlator
 from app.sensors.registry import SensorRegistry, load_default_registry
 
@@ -53,6 +54,28 @@ async def recover(settings: Settings) -> None:
     logger.info("startup recovery: %d open cases resubmitted", count)
 
 
+async def start_ingestion(settings: Settings, app: FastAPI):
+    if not settings.ingestion_enabled:
+        logger.info("log ingestion is disabled")
+        return None
+
+    # A feed that cannot start must never stop the server from starting.
+    try:
+        feed = create_feed(
+            settings,
+            app.state.registry,
+            app.state.correlator,
+            app.state.dispatcher,
+        )
+        await feed.start()
+
+    except Exception as exc:
+        logger.error("log ingestion not started: %s", type(exc).__name__)
+        return None
+
+    return feed
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -64,6 +87,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     analyze_input.set_registry(app.state.registry)
     app.state.dispatcher = get_dispatcher()
     await recover(settings)
+    app.state.ingestion = await start_ingestion(settings, app)
     logger.info("startup complete: sensors=%s", 
                 app.state.registry.names
                 )
@@ -72,6 +96,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
         
     finally:
+        if app.state.ingestion is not None:
+            await app.state.ingestion.stop()
+
+        app.state.ingestion = None
         await app.state.dispatcher.shutdown()
         analyze_input.set_registry(None)
         app.state.dispatcher = None

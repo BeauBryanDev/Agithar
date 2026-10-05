@@ -6,11 +6,14 @@ from typing import Any, Literal
 from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.utils.network import normalize_ip
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = PROJECT_ROOT / ".env"
 MODELS_DIR = Path("models")
 CORS_SEPARATOR = ","
+HOST_PATTERN = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,253}[a-z0-9])?$")
 JWT_SECRET_MIN_LENGTH = 32
 TELEGRAM_TOKEN_PATTERN = re.compile(r"^[0-9]{6,12}:[A-Za-z0-9_-]{35}$")
 TELEGRAM_CHAT_ID_PATTERN = re.compile(r"^-?[0-9]{5,20}$")
@@ -128,6 +131,22 @@ class Settings(BaseSettings):
     # Re-run the recent incidents still open when the server starts.
     recover_on_startup: bool = True
 
+    # INGESTION: the nginx log feed on valtoria. Off by default (a laptop has
+    # no such file). Log-only mode scores and counts but raises no case, so
+    # no alert and no LLM cost until the real numbers have been checked.
+    ingestion_enabled: bool = False
+    ingestion_log_only: bool = True
+    nginx_log_path: Path = Path("/var/log/nginx/agithar.access.log")
+    ingestion_state_path: Path = Path("data/ingestion/nginx_offset.json")
+    # Only these hosts are scored; the other sites on the server are not
+    # protected by Agithar. Comma separated.
+    ingestion_hosts: str = (
+        "maisonroast.tensorkingdom.com,spring-bloom.tensorkingdom.com"
+    )
+    # Optional clients to skip, for example the server's own address. The
+    # owner's home IP is NOT listed here on purpose: it changes.
+    ingestion_ignore_ips: str = ""
+
     # TELEGRAM ALERTS (bot CyberSoc, @Agithatbot)
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
@@ -241,6 +260,36 @@ class Settings(BaseSettings):
             raise ValueError("wildcard CORS origins are not allowed")
         
         return value
+
+    @field_validator("ingestion_hosts", mode="after")
+    @classmethod
+    def check_ingestion_hosts(cls, value: str) -> str:
+        for host in value.split(CORS_SEPARATOR):
+            if host.strip() and not HOST_PATTERN.match(host.strip().lower()):
+                raise ValueError("ingestion_hosts has an invalid host name")
+
+        return value
+
+    @field_validator("ingestion_ignore_ips", mode="after")
+    @classmethod
+    def check_ignore_ips(cls, value: str) -> str:
+        for item in value.split(CORS_SEPARATOR):
+            if item.strip():
+                normalize_ip(item)
+
+        return value
+
+    @property
+    def ingestion_host_list(self) -> list[str]:
+        hosts = [h.strip().lower() for h in self.ingestion_hosts.split(",")]
+
+        return [host for host in hosts if host]
+
+    @property
+    def ingestion_ignore_ip_list(self) -> list[str]:
+        items = self.ingestion_ignore_ips.split(CORS_SEPARATOR)
+
+        return [normalize_ip(item) for item in items if item.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:
