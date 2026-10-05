@@ -6,9 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.security.sanitize import sanitize_string
 
-CVE_ID_PATTERN = r"^CVE-\d{4}-\d{4,19}$"
-CWE_ID_PATTERN = r"^CWE-\d{1,5}$"
-OWASP_ID_PATTERN = r"^A\d{2}$"
+CVE_ID_PATTERN = r"^CVE-[0-9]{4}-[0-9]{4,19}$"
+CWE_ID_PATTERN = r"^CWE-[0-9]{1,5}$"
+OWASP_ID_PATTERN = r"^A[0-9]{2}$"
 CVE_ID_REGEX = re.compile(CVE_ID_PATTERN)
 MAX_TITLE_CHARS = 256
 MAX_SUMMARY_CHARS = 2048
@@ -19,7 +19,7 @@ MAX_CWES = 10
 
 CVSS_SEVERITY = Literal["none", "low", "medium", "high", "critical"]
 CVSS_VERSION = Literal["2.0", "3.0", "3.1", "4.0"]
-LOOKUP_SOURCE = Literal["nvd", "exploit_db", "cache"]
+LOOKUP_SOURCE = Literal["local", "nvd", "exploit_db", "cache"]
 
 
 def clean_text(value: str, max_chars: int) -> str:
@@ -68,6 +68,9 @@ class VulnerabilityRead(BaseModel):
     references: list[str] = Field(
         default_factory=list, max_length=MAX_REFERENCES
     )
+    vendor: Optional[str] = Field(default=None, max_length=120)
+    vuln_type: Optional[str] = Field(default=None, max_length=120)
+    affected: Optional[str] = Field(default=None, max_length=820)
     exploits: list[ExploitReference] = Field(
         default_factory=list, max_length=MAX_EXPLOITS
     )
@@ -78,6 +81,16 @@ class VulnerabilityRead(BaseModel):
     @classmethod
     def sanitize_summary(cls, value: str) -> str:
         return clean_text(str(value), MAX_SUMMARY_CHARS)
+
+    @field_validator("vendor", "vuln_type", mode="before")
+    @classmethod
+    def sanitize_short(cls, value: Optional[str]) -> Optional[str]:
+        return None if value is None else clean_text(str(value), 120)
+
+    @field_validator("affected", mode="before")
+    @classmethod
+    def sanitize_affected(cls, value: Optional[str]) -> Optional[str]:
+        return None if value is None else clean_text(str(value), 800)
 
     @field_validator("cwes")
     @classmethod
@@ -127,5 +140,14 @@ class CVELookupResult(BaseModel):
     found: bool
     source: LOOKUP_SOURCE
     vulnerability: Optional[VulnerabilityRead] = None
+    note: Optional[str] = Field(default=None, max_length=400)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def sanitize_note(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+
+        return clean_text(str(value), 300)
 
     model_config = ConfigDict(extra="forbid")
