@@ -71,6 +71,12 @@ class UserCreate(UserBase):
         return f"UserCreate(username={self.username!r})"
 
 
+class AdminUserCreate(UserCreate):
+    # Only the admin-only create route accepts this: the role is decided by
+    # the admin who creates the account, never by the new user.
+    is_admin: bool = False
+
+
 class UserUpdate(BaseModel):
     phone_number: Optional[str] = Field(default=None, pattern=PHONE_PATTERN)
     address: Optional[str] = Field(default=None, max_length=255)

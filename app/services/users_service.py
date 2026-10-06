@@ -34,6 +34,14 @@ class LastAdminError(Exception):
     pass
 
 
+class SelfDeleteError(Exception):
+    pass
+
+
+class UserStillActiveError(Exception):
+    pass
+
+
 def commit_or_rollback(db: Session) -> None:
     try:
         db.commit()
@@ -86,10 +94,14 @@ def list_users(
 
 
 def create_user(db: Session, 
-                data: UserCreate
+                data: UserCreate,
+                is_admin: bool = False
                 ) -> User:
-    values = data.model_dump(exclude={"password"})
+    # The role is an argument, never a field of the input: only the admin
+    # route passes True.
+    values = data.model_dump(exclude={"password", "is_admin"})
     user = User(**values, 
+                is_admin=is_admin,
                 password_hash=hash_password(data.password)
                 )
 
@@ -97,7 +109,7 @@ def create_user(db: Session,
     commit_or_rollback(db)
     db.refresh(user)
     logger.info("New user created",
-                extra={"user_id": user.user_id}
+                extra={"user_id": user.user_id, "is_admin": user.is_admin}
                 )
 
     return user
@@ -266,3 +278,26 @@ def delete_user(db: Session,
     db.delete(user)
     commit_or_rollback(db)
     logger.info("user deleted", extra={"user_id": user_id})
+
+
+def delete_user_permanently(
+    db: Session, user_id: int, acting_admin_id: int
+) -> None:
+    # Erases the account for good. Two safeguards on top of the last-admin
+    # rule: an admin cannot erase themselves, and the account must have been
+    # deactivated first, so a click can never remove a working account.
+    if user_id == acting_admin_id:
+        raise SelfDeleteError("you cannot permanently delete yourself")
+
+    user = get_user_or_raise(db, user_id)
+
+    if user.is_active:
+        raise UserStillActiveError("deactivate the user first")
+
+    ensure_admin_remains(db, user)
+    db.delete(user)
+    commit_or_rollback(db)
+    logger.warning(
+        "user permanently deleted",
+        extra={"user_id": user_id, "by": acting_admin_id},
+    )

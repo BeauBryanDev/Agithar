@@ -7,8 +7,13 @@ from app.api.routers import (
     chat,
     dashboard,
     detectors,
+    events,
     health,
     incidents,
+    live,
+    sensors,
+    telemetry,
+    traffic,
     users,
     vulnerabilities,
 )
@@ -33,7 +38,6 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 }
 
-# TODO: add `events` once it defines `router`.
 ROUTERS: tuple[APIRouter, ...] = (
     health.router,
     users.router,
@@ -43,6 +47,11 @@ ROUTERS: tuple[APIRouter, ...] = (
     vulnerabilities.router,
     dashboard.router,
     detectors.router,
+    events.router,
+    telemetry.router,
+    live.router,
+    traffic.router,
+    sensors.router,
 )
 
 
