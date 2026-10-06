@@ -28,7 +28,8 @@ class AutomatonState(TypedDict):
 
 
 def new_state(
-    case: dict[str, Any], incident_id: int | None = None
+    case: dict[str, Any], 
+    incident_id: int | None = None
 ) -> AutomatonState:
     # Every key is set here, so a node or a router never meets a missing one.
     return {

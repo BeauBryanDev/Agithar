@@ -1,25 +1,23 @@
-import asyncio
 import re
 from collections.abc import Callable
 from typing import Any
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
-from app.agent.chat_prompt import load_chat_prompt
-from app.agent.llm.agithar_client import get_anthropic_client
-from app.agent.llm.caching import cached_system, with_cache
+from app.agent.llm.public_client import get_public_llm
+from app.agent.public_chat_prompt import load_public_chat_prompt
+from app.agent.public_limits import PublicBusyError, public_analyze
 from app.agent.states import ChatState
 from app.agent.tool_runner import run_calls
 from app.agent.tools.analyze_input import current_registry
-from app.agent.tools.registry import CHAT_TOOLS, CHAT_TOOLS_BY_NAME
+from app.agent.tools.public_registry import PUBLIC_TOOLS, PUBLIC_TOOLS_BY_NAME
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.schemas.analysis import MAX_TEXT_CHARS, AnalyzeRequest
+from app.schemas.analysis import MAX_TEXT_CHARS
 from app.security.sanitize import escape_json, sanitize_string
-from app.services.analysis_service import analyze
 
-logger = get_logger("agent.chat")
+logger = get_logger("agent.public_chat")
 
 RECURSION_LIMIT = 30
 MAX_DETECTORS_SHOWN = 10
@@ -34,14 +32,11 @@ BUDGET_NOTE = (
     "what you could not check."
 )
 
-# Only these inputs are worth running the sensors on. A plain question must
-# not be: the payload model scores "what is sql injection" as an attack.
 EVENT_TOKENS = re.compile(r"^\s*(?:E[0-9]{1,2}[\s,]+){3,}E[0-9]{1,2}\s*$")
 LOG_LINE = re.compile(r'"[A-Z]{3,7} \S+ HTTP/[0-9.]+"')
 REQUEST_LINE = re.compile(
     r"\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /\S*"
 )
-# Markers of a pasted payload. Words alone ("sql injection") do not match.
 PAYLOAD_MARKERS = re.compile(
     r"<\s*(?:script|img|svg|iframe|body|a)\b"
     r"|\bon[a-z]{3,12}\s*="
@@ -105,10 +100,7 @@ def analysis_note(analysis: Any) -> str:
     )
 
 
-def with_analysis(messages: list[Any], 
-                  analysis: Any
-                  ) -> list[Any]:
-    # The note is added for the model call only, never stored in the history.
+def with_analysis(messages: list[Any], analysis: Any) -> list[Any]:
     if analysis is None:
         return list(messages)
 
@@ -123,19 +115,27 @@ def with_analysis(messages: list[Any],
     return out
 
 
-def build_chat_graph(
+def refused(message: Any) -> bool:
+    # OpenAI models report a refusal as a content block of that type.
+    content = getattr(message, "content", "")
+
+    return isinstance(content, list) and any(
+        isinstance(block, dict) and block.get("type") == "refusal"
+        for block in content
+    )
+
+
+def build_public_chat_graph(
     llm: Any,
     *,
     max_tool_turns: int,
-    max_tokens: int,
     registry_getter: Callable[[], Any] = current_registry,
 ) -> Any:
-    # The master prompt, then the chat rules. Fixed text only.
-    """stable cacheable prefix; nothing from a conversation goes in here."""
-    tool_model = with_cache(
-        llm.bind_tools(list(CHAT_TOOLS)).bind(max_tokens=max_tokens)
-    )
-    plain_model = with_cache(llm.bind(max_tokens=max_tokens))
+    # The output cap is set on the model itself (get_public_llm). The system
+    # prompt is a plain message: this model caches a long enough prefix on
+    # its own, there are no cache markers to place.
+    tool_model = llm.bind_tools(list(PUBLIC_TOOLS))
+    plain_model = llm
 
     async def triage(state: ChatState) -> dict[str, Any]:
         registry = registry_getter()
@@ -145,11 +145,11 @@ def build_chat_graph(
             return {"analysis": None}
 
         try:
-            result = await asyncio.to_thread(
-                analyze, registry, AnalyzeRequest(input=text)
-            )
+            # Small input, global rate, few at a time, time limit: the
+            # sensors run on a shared server.
+            result = await public_analyze(registry, text)
 
-        except ValueError:
+        except (ValueError, PublicBusyError):
             return {"analysis": None}
 
         return {"analysis": result}
@@ -157,7 +157,7 @@ def build_chat_graph(
     async def agent(state: ChatState) -> dict[str, Any]:
         finishing = state["tool_turns"] >= max_tool_turns
         messages = [
-            cached_system(load_chat_prompt()),
+            SystemMessage(load_public_chat_prompt()),
             *with_analysis(state["messages"], state["analysis"]),
         ]
 
@@ -170,24 +170,28 @@ def build_chat_graph(
             )
 
         except Exception as exc:
-            # Only the class name is logged: the text can hold a URL.
-            logger.error("chat model call failed: %s", type(exc).__name__)
+            logger.error("public chat model call failed: %s", type(exc).__name__)
 
-            return {"messages": [AIMessage(content="")], "reply": FAILED_REPLY}
+            return {"messages": [AIMessage(content="")],
+                    "reply": FAILED_REPLY
+                    }
 
         return {"messages": [reply]}
 
     async def tools(state: ChatState) -> dict[str, Any]:
         calls = list(state["messages"][-1].tool_calls)
-        results = await run_calls(calls, CHAT_TOOLS_BY_NAME)
+        results = await run_calls(calls, PUBLIC_TOOLS_BY_NAME)
 
-        return {"messages": results, "tool_turns": state["tool_turns"] + 1}
+        return {"messages": results, 
+                "tool_turns": state["tool_turns"] + 1
+                }
 
     def route_after_agent(state: ChatState) -> str:
         if state["reply"] is not None:
             return "finish"
 
-        calls = getattr(state["messages"][-1], "tool_calls", None)
+        calls = getattr(state["messages"][-1], 
+                        "tool_calls", None)
 
         return "tools" if calls else "finish"
 
@@ -198,8 +202,8 @@ def build_chat_graph(
             last = state["messages"][-1]
             details = last.response_metadata.get("stop_reason")
 
-            if details == "refusal":
-                logger.error("the model refused a chat message")
+            if details == "refusal" or refused(last):
+                logger.error("the model refused a public chat message")
                 text = REFUSED_REPLY
 
             else:
@@ -220,9 +224,9 @@ def build_chat_graph(
     builder.add_edge(START, "triage")
     builder.add_edge("triage", "agent")
     builder.add_conditional_edges(
-        "agent", 
-        route_after_agent, 
-        ["tools", "finish"]
+        "agent",
+        route_after_agent,
+        ["tools", "finish"],
     )
     builder.add_edge("tools", "agent")
     builder.add_edge("finish", END)
@@ -230,18 +234,17 @@ def build_chat_graph(
     return builder.compile()
 
 
-_graph: Any = None
+_public_graph: Any = None
 
 
-def get_chat_graph() -> Any:
-    global _graph
+def get_public_chat_graph() -> Any:
+    global _public_graph
 
-    if _graph is None:
+    if _public_graph is None:
         settings = get_settings()
-        _graph = build_chat_graph(
-            get_anthropic_client(),
-            max_tool_turns=settings.chat_max_tool_turns,
-            max_tokens=settings.chat_max_output_tokens,
+        _public_graph = build_public_chat_graph(
+            get_public_llm(),
+            max_tool_turns=settings.public_chat_max_tool_turns,
         )
 
-    return _graph
+    return _public_graph
