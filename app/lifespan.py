@@ -14,7 +14,7 @@ from app.correlator.correlator import Correlator
 from app.sensors.registry import SensorRegistry, load_default_registry
 
 
-logger = get_logger("core.lifespan")
+logger = get_logger("lifespan")
 
 
 def check_security_settings(settings: Settings) -> None:

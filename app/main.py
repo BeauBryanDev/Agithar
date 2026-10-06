@@ -20,8 +20,8 @@ from app.api.routers import (
     vulnerabilities,
 )
 from app.core.config import get_settings
-from app.core.lifespan import lifespan
 from app.core.logging import get_logger
+from app.lifespan import lifespan
 
 
 logger = get_logger("main")
