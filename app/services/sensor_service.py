@@ -12,10 +12,12 @@ FEED_COUNTERS = {
 }
 
 
-def activity(name: str, feed: Any, now: float) -> dict[str, Any]:
+def activity(name: str,
+             feed: Any, 
+             now: float) -> dict[str, Any]:
     # What the live feed has done with this sensor. Empty when the feed is
     # off or does not drive the sensor.
-    empty = {
+    empty : dict[str, Any] = {  # type: ignore
         "scored": None,
         "flagged": None,
         "flagged_last_hour": 0,

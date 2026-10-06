@@ -16,6 +16,7 @@ CORS_SEPARATOR = ","
 HOST_PATTERN = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,253}[a-z0-9])?$")
 SHOP_NAME = re.compile(r"^[a-z][a-z0-9_]{2,31}$")
 JWT_SECRET_MIN_LENGTH = 32
+INGEST_KEY_MIN_LENGTH = 32
 TELEGRAM_TOKEN_PATTERN = re.compile(r"^[0-9]{6,12}:[A-Za-z0-9_-]{35}$")
 TELEGRAM_CHAT_ID_PATTERN = re.compile(r"^-?[0-9]{5,20}$")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
@@ -28,7 +29,8 @@ class Settings(BaseSettings):
         extra="ignore",
         validate_default=True,
     )
-
+    # SENSORS PATHS: the models and metadata for the sensors. 
+    # # The models are ONNX files, the metadata is JSON files.
     logsentinel_model_path: Path = (
         MODELS_DIR / "LogSentinel" / "logsentinel.onnx"
     )
@@ -73,7 +75,7 @@ class Settings(BaseSettings):
     mitre_bundle_path: Path = Path("data") / "enterprise-attack.json"
     mitre_index_path: Path = Path("data") / "mitre" / "attack_index.json"
     cve_db_path: Path = Path("data") / "cve" / "cve.sqlite3"
-    cors_origins: str = "http://localhost:5173" 
+    cors_origins: str = "http://localhost:5173" # + /api at vite_base_url 
     # TODO: agithar.tensorkingdom.com when it is deployed.
     session_ttl_seconds: int = Field(default=3600, gt=0)
 
@@ -105,7 +107,7 @@ class Settings(BaseSettings):
     embedding_dimension: int = Field(default=1536, gt=0)
 
     # AGENT: master LLM (Claude API). No sampling settings on purpose:
-    # temperature, top_p and top_k are rejected by this model.
+    # temperature, top_p and top_k are rejected by this new model.
     anthropic_api_key: SecretStr | None = None
     agent_model: str = "claude-sonnet-5-5"
     agent_effort: Literal["low", "medium", "high"] = "medium"
@@ -158,6 +160,11 @@ class Settings(BaseSettings):
     chat_max_output_tokens: int = Field(default=2048, ge=256, le=8000)
     chat_history_messages: int = Field(default=12, ge=0, le=50)
     chat_rate_limit_per_minute: int = Field(default=10, ge=1, le=120)
+
+    # POST /api/events: machine feeds send this key in X-Ingest-Key (admins
+    # can use their login instead). Unset means only admins can push.
+    ingest_api_key: SecretStr | None = None
+    events_rate_limit_per_minute: int = Field(default=600, ge=1, le=10000)
     chat_log_tail_mb: int = Field(default=4, ge=1, le=32)
 
     # TELEGRAM ALERTS (bot CyberSoc, @Agithatbot)
@@ -182,6 +189,23 @@ class Settings(BaseSettings):
             raise ValueError(f"log_level must be one of {LOG_LEVELS}")
         
         return level
+
+    @field_validator("ingest_api_key", mode="after")
+    @classmethod
+    def require_strong_ingest_key(
+        cls, value: SecretStr | None
+    ) -> SecretStr | None:
+        # Empty counts as unset (handled by the shared validator); a short
+        # key would be guessable, so it stops the server from starting.
+        if value is None or not value.get_secret_value().strip():
+            return None
+
+        if len(value.get_secret_value()) < INGEST_KEY_MIN_LENGTH:
+            raise ValueError(
+                f"ingest_api_key needs {INGEST_KEY_MIN_LENGTH}+ characters"
+            )
+
+        return value
 
     @field_validator("jwt_secret_key", mode="after")
     @classmethod
@@ -208,6 +232,7 @@ class Settings(BaseSettings):
         "anthropic_api_key",
         "pinecone_api_key",
         "telegram_bot_token",
+        "ingest_api_key",
         mode="after",
     )
     @classmethod

@@ -12,8 +12,10 @@ from fastapi import (
 
 from app.api.deps import CurrentAdmin, CurrentUser, DbSession
 from app.core.auth import create_access_token
+from app.core.logging import get_logger
 from app.db.postgresql.users import User
 from app.schemas.users import (
+    AdminUserCreate,
     PasswordChange,
     Token,
     UserAdminUpdate,
@@ -32,6 +34,8 @@ from app.security.rate_limit import (
 )
 from app.services import users_service as service
 
+
+logger = get_logger("api.users")
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -136,14 +140,25 @@ def delete_me(current_user: CurrentUser, db: DbSession) -> Response:
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def create_user(data: UserCreate, admin: CurrentAdmin, db: DbSession) -> User:
+def create_user(
+    data: AdminUserCreate, admin: CurrentAdmin, db: DbSession
+) -> User:
+    # Admin only. The admin chooses the role of the new account.
     try:
-        return service.create_user(db, data)
+        user = service.create_user(db, data, is_admin=data.is_admin)
     except service.UserAlreadyExistsError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Username or email already in use",
         )
+
+    if user.is_admin:
+        logger.warning(
+            "admin account created",
+            extra={"user_id": user.user_id, "by": admin.user_id},
+        )
+
+    return user
 
 
 @router.get("", response_model=UserList)
@@ -195,13 +210,31 @@ def set_user_active(
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(
-    user_id: UserId, admin: CurrentAdmin, db: DbSession
+    user_id: UserId,
+    admin: CurrentAdmin,
+    db: DbSession,
+    permanent: Annotated[bool, Query()] = False,
 ) -> Response:
+    # Default: deactivate (reversible). permanent=true erases an account
+    # that is already deactivated, and never your own.
     try:
-        service.soft_delete_user(db, user_id)
+        if permanent:
+            service.delete_user_permanently(db, user_id, admin.user_id)
+        else:
+            service.soft_delete_user(db, user_id)
     except service.UserNotFoundError:
         raise not_found()
     except service.LastAdminError:
         raise last_admin_conflict()
+    except service.SelfDeleteError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You cannot permanently delete your own account",
+        )
+    except service.UserStillActiveError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Deactivate the user before deleting it permanently",
+        )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

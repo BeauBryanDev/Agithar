@@ -104,6 +104,10 @@ class Correlator:
         self.store = store or WindowStore()
         self.lock = threading.Lock()
 
+    def stats(self) -> dict[str, int]:
+        with self.lock:
+            return {"open_windows": len(self.store.windows)}
+
     def ingest(self, event: dict[str, Any]) -> dict[str, Any] | None:
         try:
             clean = normalize_event(event)

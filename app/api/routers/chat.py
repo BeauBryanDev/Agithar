@@ -42,13 +42,16 @@ Store = Annotated[ChatStore, Depends(get_chat_store)]
 Skip = Annotated[int, Query(ge=0)]
 Limit = Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)]
 SessionId = Annotated[
-    str, Path(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    str, Path(min_length=1,
+              max_length=64,
+              pattern=r"^[A-Za-z0-9_-]+$")
 ]
 
 
 def session_not_found() -> HTTPException:
     return HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Session not found"
     )
 
 
@@ -62,7 +65,8 @@ def session_limit() -> HTTPException:
 @lru_cache
 def chat_limiter() -> UsageLimiter:
     return UsageLimiter(
-        get_settings().chat_rate_limit_per_minute, CHAT_WINDOW_SECONDS
+        get_settings().chat_rate_limit_per_minute, 
+        CHAT_WINDOW_SECONDS
     )
 
 
@@ -92,7 +96,9 @@ def build_graph():
 
 
 def open_chat_session(
-    store: ChatStore, user_id: int, request: ChatRequest
+    store: ChatStore,
+    user_id: int, 
+    request: ChatRequest
 ) -> ChatSession:
     try:
         return chat_service.open_session(store, user_id, request)
@@ -111,7 +117,9 @@ def run_chat(
     request: ChatRequest,
 ) -> ChatReply:
     try:
-        return chat_service.respond(store, registry, user_id, request)
+        return chat_service.respond(store,
+                                    registry, 
+                                    user_id, request)
 
     except SessionNotFoundError as exc:
         raise session_not_found() from exc
@@ -178,11 +186,14 @@ async def stream_message(
 ) -> StreamingResponse:
     if not user.is_admin:
         reply = await run_in_threadpool(
-            run_chat, store, registry, user.user_id, request
+            run_chat, store, registry,
+            user.user_id, request
         )
 
         return StreamingResponse(
-            sse_lines(reply), media_type=SSE_MEDIA_TYPE, headers=SSE_HEADERS
+            sse_lines(reply),
+            media_type=SSE_MEDIA_TYPE, 
+            headers=SSE_HEADERS
         )
 
     graph = build_graph()
@@ -190,7 +201,9 @@ async def stream_message(
     session = open_chat_session(store, user.user_id, request)
 
     return StreamingResponse(
-        sse_llm(store, graph, user.user_id, session, request),
+        sse_llm(store, graph, 
+                user.user_id, 
+                session, request),
         media_type=SSE_MEDIA_TYPE,
         headers=SSE_HEADERS,
     )
@@ -203,7 +216,8 @@ def list_sessions(
     skip: Skip = 0,
     limit: Limit = DEFAULT_PAGE_SIZE,
 ) -> ChatSessionList:
-    items, total = store.list_for_owner(user.user_id, skip, limit)
+    items, total = store.list_for_owner(user.user_id, 
+                                        skip, limit)
 
     return ChatSessionList(items=items, 
                            total=total, 
