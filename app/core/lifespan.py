@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from app.agent.dispatcher import get_dispatcher
 from app.agent.recovery import recover_open_cases
-from app.agent.tools import analyze_input
+from app.agent.tools import analyze_input, ingestion_status
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.ingestion.nginx_log_feed import create_feed
@@ -88,6 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.dispatcher = get_dispatcher()
     await recover(settings)
     app.state.ingestion = await start_ingestion(settings, app)
+    ingestion_status.set_feed(app.state.ingestion)
     logger.info("startup complete: sensors=%s", 
                 app.state.registry.names
                 )
@@ -96,6 +97,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
         
     finally:
+        ingestion_status.set_feed(None)
+
         if app.state.ingestion is not None:
             await app.state.ingestion.stop()
 

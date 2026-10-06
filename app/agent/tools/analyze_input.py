@@ -25,6 +25,10 @@ def set_registry(registry: SensorRegistry | None) -> None:
     _registry = registry
 
 
+def current_registry() -> SensorRegistry | None:
+    return _registry
+
+
 class AnalyzeArgs(BaseModel):
     text: str = Field(
         min_length=1,

@@ -6,6 +6,7 @@ from app.agent.tools import (
     cve_lookup,
     exploit_db,
     incident_history,
+    ingestion_status,
     linux_knowledge,
     mitre_lookup,
     mitre_tactics,
@@ -16,6 +17,9 @@ from app.agent.tools import (
     set_judgment,
     set_verdict,
     shodan_lookup,
+    shop_incidents,
+    shop_recent_errors,
+    shop_traffic,
     threat_intelligence,
     virustotal_lookup,
 )
@@ -59,3 +63,15 @@ def wire_tools() -> list:
     # What is bound to the model: the lookup tools as they are and the two
     # finish tools as strict schemas.
     return [*MASTER_TOOLS, *FINISH_WIRE]
+
+
+# The admin chat: every lookup tool plus the live shop tools. No finish
+# tools and nothing that writes, restarts or notifies.
+CHAT_TOOLS: tuple[StructuredTool, ...] = (
+    *MASTER_TOOLS,
+    shop_traffic.TOOL,
+    shop_recent_errors.TOOL,
+    shop_incidents.TOOL,
+    ingestion_status.TOOL,
+)
+CHAT_TOOLS_BY_NAME = {tool.name: tool for tool in CHAT_TOOLS}

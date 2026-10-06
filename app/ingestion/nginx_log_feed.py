@@ -36,6 +36,7 @@ class Pending:
     target: str | None
     user_agent: str
     status: int
+    host: str
 
 
 class NginxFeed:
@@ -67,6 +68,7 @@ class NginxFeed:
         self.windows = WindowBuilder()
         self.stats: Counter[str] = Counter()
         self._last_stats = clock()
+        self.last_line_ts: float | None = None
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
 
@@ -108,7 +110,7 @@ class NginxFeed:
 
         return Pending(
             result, line.client_ip, line.timestamp, line.method,
-            line.target, line.user_agent, line.status,
+            line.target, line.user_agent, line.status, line.host,
         )
 
     def score_window(self, window: ClosedWindow) -> Pending | None:
@@ -123,7 +125,7 @@ class NginxFeed:
 
         return Pending(
             result, window.ip, window.start_timestamp, sample.method,
-            sample.target, sample.user_agent, sample.status,
+            sample.target, sample.user_agent, sample.status, sample.host,
         )
 
     def process(self, lines: list[str], idle: bool) -> list[Pending]:
@@ -143,6 +145,7 @@ class NginxFeed:
             if not self.keep(line):
                 continue
 
+            self.last_line_ts = max(self.last_line_ts or 0.0, line.timestamp)
             self.stats["scored_requests"] += 1
             found = self.score_request(line)
             pending += [found] if found else []
@@ -182,7 +185,7 @@ class NginxFeed:
                         self.correlator, session, item.result, item.ip,
                         item.timestamp, method=item.method,
                         target=item.target, user_agent=item.user_agent,
-                        status=item.status,
+                        status=item.status, host=item.host,
                     )
 
                 except EventRejectedError:
@@ -208,6 +211,23 @@ class NginxFeed:
         if self.stats:
             counts = dict(sorted(self.stats.items()))
             logger.info("ingestion stats: %s", counts)
+
+    def snapshot(self) -> dict[str, Any]:
+        # What the chat tool `ingestion_status` reports.
+        last = self.last_line_ts
+        running = self._task is not None and not self._task.done()
+
+        return {
+            "enabled": True,
+            "running": running,
+            "log_only": self.log_only,
+            "hosts": sorted(self.hosts),
+            "counters": dict(sorted(self.stats.items())),
+            "seconds_since_last_scored_line": (
+                None if last is None else round(self.clock() - last, 1)
+            ),
+            "open_windows": self.windows.open_count,
+        }
 
     async def handle(self, lines: list[str], idle: bool) -> None:
         # A failure here must not stop the feed: it is logged and counted.

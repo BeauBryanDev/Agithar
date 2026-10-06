@@ -52,8 +52,21 @@ def new_state(
 
 
 class ChatState(TypedDict):
-    operator_id: str
+    operator_id: str  # the admin's user id, as text
     messages: Annotated[list, add_messages]
-    retrieved_context: list[dict[str, Any]]
-    action_case: dict[str, Any] | None
-    
+    tool_turns: int
+    # Sensor analysis of a pasted request or log, when the message has one.
+    analysis: Any
+    reply: str | None
+
+
+def new_chat_state(
+    operator_id: str, messages: list[Any]
+) -> ChatState:
+    return {
+        "operator_id": operator_id,
+        "messages": messages,
+        "tool_turns": 0,
+        "analysis": None,
+        "reply": None,
+    }

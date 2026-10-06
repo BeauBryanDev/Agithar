@@ -14,6 +14,7 @@ ENV_FILE = PROJECT_ROOT / ".env"
 MODELS_DIR = Path("models")
 CORS_SEPARATOR = ","
 HOST_PATTERN = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,253}[a-z0-9])?$")
+SHOP_NAME = re.compile(r"^[a-z][a-z0-9_]{2,31}$")
 JWT_SECRET_MIN_LENGTH = 32
 TELEGRAM_TOKEN_PATTERN = re.compile(r"^[0-9]{6,12}:[A-Za-z0-9_-]{35}$")
 TELEGRAM_CHAT_ID_PATTERN = re.compile(r"^-?[0-9]{5,20}$")
@@ -90,7 +91,8 @@ class Settings(BaseSettings):
     virustotal_api_key: SecretStr | None = Field(
         default=None,
         validation_alias=AliasChoices(
-            "VIRUSTOTAL_API_KEY", "VIRUS_TOTAL_API_KEY"
+            "VIRUSTOTAL_API_KEY",
+            "VIRUS_TOTAL_API_KEY"
         ),
     )
 
@@ -114,9 +116,7 @@ class Settings(BaseSettings):
     # Server-side fallback when the model declines a request (refusal).
     agent_fallbacks: bool = True
 
-    # SECRETARIES: the report writers (OpenAI Responses API). The model id is
-    # the user's choice and is not verified here. Reasoning tokens count
-    # against the output cap, so it is well above a draft's length.
+    # SECRETARIES: the report writers by OpenAI Responses API. .
     secretary_model: str = "gpt-6-luna"
     secretary_effort: Literal["low", "medium", "high"] = "medium"
     secretary_max_output_tokens: int = Field(default=4096, ge=512, le=16000)
@@ -131,8 +131,8 @@ class Settings(BaseSettings):
     # Re-run the recent incidents still open when the server starts.
     recover_on_startup: bool = True
 
-    # INGESTION: the nginx log feed on valtoria. Off by default (a laptop has
-    # no such file). Log-only mode scores and counts but raises no case, so
+    # INGESTION: the nginx log feed on valtoria. Off by default my laptop has
+    # no such file . Log-only mode scores and counts but raises no case, so
     # no alert and no LLM cost until the real numbers have been checked.
     ingestion_enabled: bool = False
     ingestion_log_only: bool = True
@@ -146,6 +146,19 @@ class Settings(BaseSettings):
     # Optional clients to skip, for example the server's own address. The
     # owner's home IP is NOT listed here on purpose: it changes.
     ingestion_ignore_ips: str = ""
+
+    # CHAT: the admin's conversation with Agithar (admins only). `shops` maps
+    # a short name to its host; they are the only sites the chat tools can
+    # ask about, so the model never supplies a host name itself.
+    shops: str = (
+        "maisonroast=maisonroast.tensorkingdom.com,"
+        "florabelle=spring-bloom.tensorkingdom.com"
+    )
+    chat_max_tool_turns: int = Field(default=4, ge=1, le=10)
+    chat_max_output_tokens: int = Field(default=2048, ge=256, le=8000)
+    chat_history_messages: int = Field(default=12, ge=0, le=50)
+    chat_rate_limit_per_minute: int = Field(default=10, ge=1, le=120)
+    chat_log_tail_mb: int = Field(default=4, ge=1, le=32)
 
     # TELEGRAM ALERTS (bot CyberSoc, @Agithatbot)
     telegram_bot_token: SecretStr | None = None
@@ -278,6 +291,36 @@ class Settings(BaseSettings):
                 normalize_ip(item)
 
         return value
+
+    @field_validator("shops", mode="after")
+    @classmethod
+    def check_shops(cls, value: str) -> str:
+        pairs = [p.strip() for p in value.split(CORS_SEPARATOR) if p.strip()]
+
+        if not pairs:
+            raise ValueError("shops needs at least one name=host pair")
+
+        for pair in pairs:
+            name, _, host = pair.partition("=")
+
+            if not SHOP_NAME.match(name.strip()):
+                raise ValueError("shops has an invalid shop name")
+
+            if not HOST_PATTERN.match(host.strip().lower()):
+                raise ValueError("shops has an invalid host name")
+
+        return value
+
+    @property
+    def shop_map(self) -> dict[str, str]:
+        pairs = [p for p in self.shops.split(CORS_SEPARATOR) if p.strip()]
+        result = {}
+
+        for pair in pairs:
+            name, _, host = pair.partition("=")
+            result[name.strip()] = host.strip().lower()
+
+        return result
 
     @property
     def ingestion_host_list(self) -> list[str]:

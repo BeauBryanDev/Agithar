@@ -1,7 +1,13 @@
+import re
 import secrets
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import datetime, timezone
 
+from langchain_core.messages import AIMessage, HumanMessage
+
+from app.agent.states import new_chat_state
+from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.schemas.analysis import (
     MAX_EVIDENCE_ITEMS,
     AnalyzeRequest,
@@ -22,6 +28,8 @@ from app.security.sanitize import sanitize_string
 from app.services.analysis_service import analyze
 from app.services.chat_store import ChatStore
 from app.sensors.registry import SensorRegistry
+
+logger = get_logger("services.chat")
 
 DEFAULT_TITLE = "New session"
 NO_ANALYSIS_TEXT = (
@@ -164,3 +172,168 @@ def stream_events(reply: ChatReply) -> Iterator[ChatStreamEvent]:
 
     yield ChatStreamEvent(type="token", text=content)
     yield ChatStreamEvent(type="done", reply=reply)
+
+
+# ---- the admin chat: the LLM graph -------------------------------------
+
+HISTORY_CHARS = 4000
+FLUSH_CHARS = 24
+RECURSION_LIMIT = 30
+UNSAFE_NAME = re.compile(r"[^a-z0-9_]")
+FAILED_TEXT = "The chat is unavailable right now. Please try again."
+STATUS_LABELS = {
+    "shop_traffic": "Reading {shop} traffic",
+    "shop_recent_errors": "Reading {shop} errors",
+    "shop_incidents": "Checking {shop} incidents",
+    "server_status": "Checking the server",
+    "ingestion_status": "Checking the log feed",
+    "incident_history": "Looking up earlier incidents",
+    "recent_incidents": "Looking up recent incidents",
+    "threat_intelligence": "Checking IP reputation",
+    "cve_lookup": "Looking up a CVE",
+}
+
+
+class ChatFailedError(Exception):
+    pass
+
+
+def history_messages(session: ChatSession, limit: int) -> list:
+    # The last turns of the session as model messages (system = Agithar).
+    kept = session.messages[-limit:] if limit > 0 else []
+    out: list = []
+
+    for message in kept:
+        text = sanitize_string(message.content, HISTORY_CHARS,
+                               keep_newlines=True)
+        out.append(
+            HumanMessage(text) if message.role == "analyst"
+            else AIMessage(text)
+        )
+
+    return out
+
+
+def chunk_text(chunk: object) -> str:
+    # Only the answer text of a streamed chunk, never thinking or tool input.
+    content = getattr(chunk, "content", "")
+
+    if isinstance(content, str):
+        return content
+
+    return "".join(
+        block.get("text", "")
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "text"
+    )
+
+
+def status_text(call: dict) -> str:
+    name = UNSAFE_NAME.sub("", str(call.get("name", "")).lower())[:40]
+    shop = UNSAFE_NAME.sub("", str(call.get("args", {}).get("shop", "")))
+    label = STATUS_LABELS.get(name)
+
+    if label is None:
+        return f"Using {name or 'a tool'}"
+
+    return label.format(shop=shop[:32] or "shop")
+
+
+async def stream_llm(
+    store: ChatStore,
+    graph: object,
+    owner_id: int,
+    session: ChatSession,
+    request: ChatRequest,
+) -> AsyncIterator[ChatStreamEvent]:
+    # Runs the chat graph and yields status, evidence and cumulative token
+    # events, then saves the turn and yields done. A failure yields one
+    # error event and saves nothing.
+    settings = get_settings()
+    messages = [
+        *history_messages(session, settings.chat_history_messages),
+        HumanMessage(request.input),
+    ]
+    state = new_chat_state(str(owner_id), messages)
+    evidence: list[DetectorResult] = []
+    text, sent, reply_text = "", 0, None
+
+    try:
+        async for mode, data in graph.astream(  # type: ignore[attr-defined]
+            state,
+            config={"recursion_limit": RECURSION_LIMIT},
+            stream_mode=["messages", "updates"],
+        ):
+            if mode == "messages":
+                chunk, meta = data
+
+                if meta.get("langgraph_node") == "agent":
+                    text += chunk_text(chunk)
+
+                    if len(text) - sent >= FLUSH_CHARS:
+                        sent = len(text)
+                        yield ChatStreamEvent(type="token", text=text)
+
+                continue
+
+            for node, update in data.items():
+                update = update or {}
+
+                if node == "triage" and update.get("analysis") is not None:
+                    evidence, _ = tag_evidence(update["analysis"])
+                    yield ChatStreamEvent(type="evidence", evidence=evidence)
+
+                elif node == "agent":
+                    calls = getattr(update["messages"][-1], "tool_calls", [])
+
+                    for call in calls:
+                        yield ChatStreamEvent(
+                            type="status", text=status_text(call)
+                        )
+
+                    if calls:
+                        text, sent = "", 0
+
+                elif node == "finish":
+                    reply_text = update["reply"]
+
+    except Exception as exc:
+        logger.error("chat graph failed: %s", type(exc).__name__)
+        yield ChatStreamEvent(type="error", text=FAILED_TEXT)
+
+        return
+
+    if reply_text is None:
+        yield ChatStreamEvent(type="error", text=FAILED_TEXT)
+
+        return
+
+    analyst = new_message("analyst", request.input)
+    system = new_message("system", reply_text)
+
+    def add_turn(stored: ChatSession) -> None:
+        apply_turn(stored, analyst, system, evidence)
+
+    store.update(owner_id, session.id, add_turn)
+    reply = ChatReply(session_id=session.id, message=system,
+                      evidence=evidence)
+
+    yield ChatStreamEvent(type="token", text=reply_text)
+    yield ChatStreamEvent(type="done", reply=reply)
+
+
+async def complete_llm(
+    store: ChatStore,
+    graph: object,
+    owner_id: int,
+    session: ChatSession,
+    request: ChatRequest,
+) -> ChatReply:
+    async for event in stream_llm(store, graph, owner_id, session, request):
+        if event.type == "done" and event.reply is not None:
+            return event.reply
+
+        if event.type == "error":
+            break
+
+    raise ChatFailedError()

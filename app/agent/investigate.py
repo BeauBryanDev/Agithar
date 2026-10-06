@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,7 +11,9 @@ from langchain_core.messages import (
 from app.agent.demeanor import build_case_message, load_base_prompt
 from app.agent.findings_builder import Record
 from app.agent.llm.agithar_client import get_anthropic_client
+from app.agent.llm.caching import cached_system, with_cache
 from app.agent.report import NO_VERDICT
+from app.agent.tool_runner import run_calls
 from app.agent.tools.common import unwrap_result
 from app.agent.tools.registry import (
     FINISH_NAMES,
@@ -30,7 +31,6 @@ from app.services.analysis_service import (
 
 logger = get_logger("agent.investigate")
 
-MAX_CALLS_PER_TURN = 6
 MAX_FINISH_TURNS = 4
 NUDGE = (
     "You have not finished. Call set_verdict if you have not, then "
@@ -41,29 +41,8 @@ BUDGET_NOTE = (
 )
 
 
-CACHE = {"type": "ephemeral"}
-
-
 def system_message() -> SystemMessage:
-    prompt = load_base_prompt()
-
-    if not get_settings().agent_prompt_cache:
-        return SystemMessage(prompt)
-
-    # The breakpoint on the last system block caches the tool definitions
-    # (which come first in the request) together with the system prompt.
-    block = {"type": "text", "text": prompt, "cache_control": CACHE}
-
-    return SystemMessage(content=[block])
-
-
-def with_cache(model: Any) -> Any:
-    # Automatic caching of the growing conversation, on top of the system
-    # breakpoint: each later turn of a case reads the earlier turns.
-    if not get_settings().agent_prompt_cache:
-        return model
-
-    return model.bind(cache_control=CACHE)
+    return cached_system(load_base_prompt())
 
 
 @dataclass
@@ -81,38 +60,13 @@ def finish_ok(run: Run) -> bool:
     return run.judgment is not None or run.verdict.verdict == "false_positive"
 
 
-def finalize_verdict(artifact: dict[str, Any], severity: str) -> AgentVerdict:
+def finalize_verdict(artifact: dict[str, Any], 
+                     severity: str
+                     ) -> AgentVerdict:
     # The tool does not know the case: MITRE check and escalation rule here.
     verdict = AgentVerdict.model_validate(artifact)
 
     return enforce_verdict(check_mitre_technique(verdict), severity)
-
-
-async def execute(call: dict[str, Any]) -> ToolMessage:
-    tool = LOOP_TOOLS_BY_NAME.get(call["name"])
-
-    if tool is None:
-        return ToolMessage("unknown tool", tool_call_id=call["id"])
-
-    try:
-        return await tool.ainvoke(call)
-
-    except Exception as exc:
-        logger.error("tool call failed: %s", type(exc).__name__)
-
-        return ToolMessage("tool failed", tool_call_id=call["id"])
-
-
-async def run_calls(calls: list[dict[str, Any]]) -> list[ToolMessage]:
-    # Every call gets a result, including the ones over the per-turn limit.
-    allowed, extra = calls[:MAX_CALLS_PER_TURN], calls[MAX_CALLS_PER_TURN:]
-    messages = list(await asyncio.gather(*(execute(c) for c in allowed)))
-    messages += [
-        ToolMessage("too many calls in one turn", tool_call_id=c["id"])
-        for c in extra
-    ]
-
-    return messages
 
 
 def absorb(
@@ -200,7 +154,7 @@ async def investigate(case: dict[str, Any]) -> Run:
             messages.append(HumanMessage(NUDGE))
             continue
 
-        results = await run_calls(calls)
+        results = await run_calls(calls, LOOP_TOOLS_BY_NAME)
         messages.extend(results)
 
         for call, message in zip(calls, results):

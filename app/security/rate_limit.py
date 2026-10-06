@@ -100,6 +100,42 @@ PASSWORD_LIMITER = FailureLimiter(
 )
 
 
+class UsageLimiter:
+    # At most max_events per window for each key (an LLM chat message costs
+    # money, so every use counts, not only failures). Thread-safe.
+    def __init__(
+        self,
+        max_events: int,
+        window_seconds: int,
+        max_keys: int = MAX_TRACKED_KEYS,
+    ) -> None:
+        self.max_events = max_events
+        self.window_seconds = window_seconds
+        self.max_keys = max_keys
+        self.events: dict[str, deque[float]] = {}
+        self.lock = threading.Lock()
+
+    def hit(self, key: str, now: float | None = None) -> int:
+        # 0 when allowed (and recorded), else the seconds to wait.
+        moment = time.monotonic() if now is None else now
+
+        with self.lock:
+            if key not in self.events and len(self.events) >= self.max_keys:
+                self.events.pop(next(iter(self.events)))
+
+            recent = self.events.setdefault(key, deque())
+
+            while recent and moment - recent[0] >= self.window_seconds:
+                recent.popleft()
+
+            if len(recent) >= self.max_events:
+                return max(1, int(self.window_seconds - (moment - recent[0])))
+
+            recent.append(moment)
+
+            return 0
+
+
 def client_ip(request: Request) -> str:
     if request.client is None:
         return UNKNOWN_CLIENT
@@ -120,3 +156,11 @@ def ensure_not_limited(limiter: FailureLimiter, key: str) -> None:
 
     if wait > 0:
         raise too_many_requests(wait)
+
+
+def too_many_messages(wait: int) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many chat messages, slow down",
+        headers={"Retry-After": str(wait)},
+    )

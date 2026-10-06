@@ -25,7 +25,7 @@ MAX_TITLE_CHARS = 120
 MESSAGE_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
 
 MESSAGE_ROLE = Literal["analyst", "system"]
-STREAM_EVENT = Literal["token", "evidence", "done", "error"]
+STREAM_EVENT = Literal["token", "evidence", "done", "error", "status"]
 
 
 class ChatMessage(BaseModel):

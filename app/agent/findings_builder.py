@@ -110,7 +110,8 @@ def build_facts(
 ) -> list[dict[str, str]]:
     # Builds a list of facts from the case and the intel.
     facts = []
-    scores = sorted(case["sensor_scores"].items(), key=lambda kv: -kv[1])
+    scores = sorted(case["sensor_scores"].items(), 
+                    key=lambda kv: -kv[1])
 
     for name, score in scores[:MAX_FACT_SENSORS]:
         facts.append(

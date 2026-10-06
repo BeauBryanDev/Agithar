@@ -2,7 +2,16 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routers import chat, health, incidents, users
+from app.api.routers import (
+    analysis,
+    chat,
+    dashboard,
+    detectors,
+    health,
+    incidents,
+    users,
+    vulnerabilities,
+)
 from app.core.config import get_settings
 from app.core.lifespan import lifespan
 from app.core.logging import get_logger
@@ -24,12 +33,16 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 }
 
-# TODO: add the other routers once they define `router`.
+# TODO: add `events` once it defines `router`.
 ROUTERS: tuple[APIRouter, ...] = (
     health.router,
     users.router,
     incidents.router,
     chat.router,
+    analysis.router,
+    vulnerabilities.router,
+    dashboard.router,
+    detectors.router,
 )
 
 

@@ -90,6 +90,7 @@ def flush_incident(
     # rejects the second insert, which then becomes an update.
     try:
         session.flush()
+        
     except IntegrityError:
         session.rollback()
         incident = get_incident_by_case_key(session, case["case_id"])
@@ -131,6 +132,7 @@ def list_incidents(
     skip: int,
     limit: int,
 ) -> tuple[list[Incident], int]:
+    
     skip = max(skip, 0)
     limit = min(max(limit, 1), MAX_PAGE_SIZE)
 
@@ -276,6 +278,38 @@ def incidents_since(
                 Incident.status,
                 Incident.contributing_sensors,
                 Incident.verdict,
+            )
+            .where(Incident.created_at >= since)
+            .order_by(Incident.created_at.desc())
+            .limit(limit)
+        ).all()
+    )
+
+
+MAX_EVIDENCE_ROWS = 500
+
+
+def incidents_with_evidence_since(
+    session: Session, 
+    since: datetime, 
+    max_rows: int | None = None
+) -> list[Any]:
+    # Like incidents_since, plus the evidence (to find the shop of each).
+    limit = MAX_EVIDENCE_ROWS if max_rows is None else max_rows
+
+    return list(
+        session.execute(
+            select(
+                Incident.incident_id,
+                Incident.ip,
+                Incident.created_at,
+                Incident.severity,
+                Incident.composite_score,
+                Incident.status,
+                Incident.contributing_sensors,
+                Incident.verdict,
+                Incident.evidence,
+                Incident.notified,
             )
             .where(Incident.created_at >= since)
             .order_by(Incident.created_at.desc())
