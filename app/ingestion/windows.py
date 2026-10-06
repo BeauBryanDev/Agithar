@@ -93,20 +93,25 @@ class WindowBuilder:
         # decides, which is what a backlog needs.
         limit = self._latest - self.grace
         keys = [key for key in self._open if key[1] < limit]
+        # A set: tens of thousands of open windows (an upload, a flood of
+        # scanner IPs) made the list membership test quadratic.
+        chosen = set(keys)
 
         if idle_now is not None:
             idle_index = window_index(idle_now) - self.grace - 1
-            keys += [
+            extra = [
                 key for key in self._open
-                if key not in keys and key[1] <= idle_index
+                if key not in chosen and key[1] <= idle_index
             ]
+            keys += extra
+            chosen.update(extra)
 
         # A flood of distinct IPs must not exhaust memory: the oldest go.
         overflow = len(self._open) - len(keys) - self.max_open
 
         if overflow > 0:
             logger.warning("too many open windows, closing the oldest early")
-            rest = [k for k in self._open if k not in keys]
+            rest = [k for k in self._open if k not in chosen]
             rest.sort(key=lambda k: k[1])
             keys += rest[:overflow]
 

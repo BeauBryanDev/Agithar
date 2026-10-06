@@ -90,7 +90,9 @@ def jobs_from_access_log(lines: list[str]) -> list[Job]:
         )
 
     for requests in list(by_ip.values())[:MAX_RECON_IPS]:
-        jobs.append(Job(RECON_SENSOR, {"requests": requests}))
+        jobs.append(Job(RECON_SENSOR, 
+                        {"requests": requests})
+                    )
 
     return jobs
 
@@ -126,7 +128,8 @@ def jobs_from_input(text: str) -> list[Job]:
 
 
 def run_jobs(
-    registry: SensorRegistry, jobs: list[Job]
+    registry: SensorRegistry, 
+    jobs: list[Job]
 ) -> tuple[list[SensorResult], int]:
     results: list[SensorResult] = []
     skipped = 0
@@ -200,7 +203,9 @@ def enforce_verdict(verdict: AgentVerdict,
 
 
 def with_mitre_note(
-    verdict: AgentVerdict, technique: str | None, note: str
+    verdict: AgentVerdict,
+    technique: str | None,
+    note: str
 ) -> AgentVerdict:
     # The summary is rebuilt through the schema, so it is sanitized again.
     room = MAX_SUMMARY_CHARS - MITRE_NOTE_ROOM
@@ -216,6 +221,7 @@ def with_mitre_note(
 
 
 def check_mitre_technique(verdict: AgentVerdict) -> AgentVerdict:
+    
     claimed = verdict.mitre_technique
 
     if claimed is None:
@@ -224,6 +230,7 @@ def check_mitre_technique(verdict: AgentVerdict) -> AgentVerdict:
     try:
         result = check_technique(claimed)
         version = attack_version()
+        
     except MitreError:
         logger.warning("mitre technique could not be checked")
         note = f"Note: MITRE technique {claimed} could not be verified."
