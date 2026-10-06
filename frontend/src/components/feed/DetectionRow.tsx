@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { DetectionRow as Row } from "../../types/feed";
 import { Badge } from "../common/Badge";
 import { formatDateTime, formatScore } from "../../utils/formatters";
@@ -10,8 +11,19 @@ interface DetectionRowProps {
 }
 
 export function DetectionRow({ row }: DetectionRowProps) {
+  const navigate = useNavigate();
+  const open = () => navigate(`/incidents/${encodeURIComponent(row.case_key)}`);
+
   return (
-    <tr className="group border-b border-hairline transition-colors hover:bg-panel-2">
+    <tr
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") open();
+      }}
+      tabIndex={0}
+      title="Open incident"
+      className="group cursor-pointer border-b border-hairline transition-colors hover:bg-panel-2 focus:bg-panel-2"
+    >
       <td className="relative py-2 pl-4 pr-3">
         <span
           className={`absolute left-0 top-0 h-full w-0.5 ${severityBgClass(

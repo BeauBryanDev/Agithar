@@ -1,4 +1,5 @@
-import { Terminal, User } from "lucide-react";
+import { User } from "lucide-react";
+import agitharIcon from "../../assets/agithar.svg";
 import type { AnalysisMessage } from "../../types/analysis";
 import { StreamingText } from "./StreamingText";
 import { formatTime } from "../../utils/formatters";
@@ -28,7 +29,7 @@ export function MessageBubble({
         {isAnalyst ? (
           <User className="h-3.5 w-3.5" strokeWidth={1.75} />
         ) : (
-          <Terminal className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <img src={agitharIcon} alt="Agithar" className="h-5 w-5" />
         )}
       </div>
 
@@ -43,7 +44,7 @@ export function MessageBubble({
         </div>
 
         {isAnalyst ? (
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-sm border border-hairline bg-panel-2 p-3 font-mono text-xs text-secondary">
+          <pre className="hud-corners overflow-x-auto whitespace-pre-wrap break-words border border-hairline bg-panel-2 p-3 font-mono text-sm text-secondary">
             {message.content}
           </pre>
         ) : (

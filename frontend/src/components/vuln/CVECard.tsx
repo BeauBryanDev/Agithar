@@ -21,7 +21,7 @@ export function CVECard({ record }: CVECardProps) {
   const exploits = record.exploits ?? [];
 
   return (
-    <article className="relative border border-hairline bg-panel-2 p-4 transition-colors hover:border-electric/50">
+    <article className="hud-corners relative border border-hairline bg-panel-2 p-4 transition-colors hover:border-electric/50">
       <span className="pointer-events-none absolute -left-px -top-px h-3 w-3 border-l border-t border-electric" />
       <span className="pointer-events-none absolute -right-px -top-px h-3 w-3 border-r border-t border-electric" />
 

@@ -1,3 +1,4 @@
+import { MarkdownText } from "./MarkdownText";
 import { segmentContent } from "../../hooks/useEvidenceLink";
 import type { EvidenceRef } from "../../types/analysis";
 
@@ -20,10 +21,16 @@ export function StreamingText({
   activeEvidenceId,
   onHoverClaim,
 }: StreamingTextProps) {
+  // Evidence claims are character spans over the raw text, so they only
+  // work on plain text. Replies without claims are rendered as markdown.
+  if (!refs || refs.length === 0) {
+    return <MarkdownText content={content} streaming={streaming} />;
+  }
+
   const segments = segmentContent(content, refs);
 
   return (
-    <p className="whitespace-pre-wrap text-sm leading-relaxed text-primary">
+    <p className="whitespace-pre-wrap text-base leading-relaxed text-primary">
       {segments.map((seg, i) => {
         if (!seg.evidenceId) {
           return <span key={i}>{seg.text}</span>;

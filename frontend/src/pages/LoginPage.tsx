@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Panel } from "../components/common/Panel";
+import logo from "../assets/cybersoc-logo.webp";
 import { Button } from "../components/common/Button";
 import { useAuthStore } from "../store/useAuthStore";
 
@@ -36,9 +37,24 @@ export function LoginPage() {
     "w-full border border-hairline bg-panel-2 px-3 py-2.5 font-mono text-sm text-primary placeholder:text-dim focus:border-electric focus:outline-none";
 
   return (
-    <div className="aegis-grid flex h-screen items-center justify-center bg-void p-4">
-      <div className="w-full max-w-sm">
-        <Panel title="Aegis Cyber Guard — Sign in" bodyClassName="p-5">
+    <div className="aegis-grid flex min-h-screen items-center justify-center bg-void p-4">
+      <div className="aegis-fade-in w-full max-w-sm">
+        <div className="mb-4 flex flex-col items-center text-center">
+          <img
+            src={logo}
+            alt="Aegis Cyber SOC"
+            width={640}
+            height={616}
+            className="h-[min(40vh,22rem)] w-auto drop-shadow-[0_0_36px_rgba(46,155,255,0.55)]"
+          />
+          <h1 className="mt-4 font-mono text-xl font-semibold tracking-[0.3em] text-neon">
+            AEGIS-CYBER-SOC
+          </h1>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.25em] text-dim">
+            Secure operator console
+          </p>
+        </div>
+        <Panel title="Operator sign in" bodyClassName="p-5">
           <form onSubmit={submit} className="flex flex-col gap-3">
             <input
               value={username}

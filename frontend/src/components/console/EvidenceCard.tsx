@@ -29,7 +29,7 @@ export function EvidenceCard({
       data-evidence-id={result.id}
       onMouseEnter={() => onHover(result.id)}
       onMouseLeave={() => onHover(null)}
-      className={`relative border bg-panel-2 transition-colors ${
+      className={`hud-corners relative border bg-panel-2 transition-colors ${
         active
           ? "border-neon shadow-[0_0_0_1px_var(--color-neon)]"
           : "border-hairline hover:border-electric/50"

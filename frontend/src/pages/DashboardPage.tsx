@@ -5,6 +5,9 @@ import { SeverityDonut } from "../components/dashboard/SeverityDonut";
 import { AnomalyTimeline } from "../components/dashboard/AnomalyTimeline";
 import { SensorBar } from "../components/dashboard/SensorBar";
 import { SensorStatus } from "../components/dashboard/SensorStatus";
+import { LiveTelemetry } from "../components/dashboard/LiveTelemetry";
+import { LiveActivity } from "../components/dashboard/LiveActivity";
+import { ShopTraffic } from "../components/dashboard/ShopTraffic";
 import { MitreTechniqueBar } from "../components/dashboard/MitreTechniqueBar";
 import { EmptyState } from "../components/common/EmptyState";
 import { fetchDashboard, fetchDetectors } from "../services/dashboardService";
@@ -70,6 +73,10 @@ export function DashboardPage() {
 
   return (
     <div className="p-4">
+      <LiveTelemetry />
+      <LiveActivity />
+      <ShopTraffic />
+
       <div className="mb-4 flex items-center justify-between">
         <p className="font-mono text-xs text-secondary">
           {data.total_incidents} incidents in the last{" "}

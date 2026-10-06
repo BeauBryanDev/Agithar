@@ -1,4 +1,7 @@
+import type { ComponentType } from "react";
 import { NavLink } from "react-router-dom";
+import adminIcon from "../../assets/admin.svg";
+import { useAuthStore } from "../../store/useAuthStore";
 import {
   Terminal,
   LayoutDashboard,
@@ -7,6 +10,8 @@ import {
   Upload,
   ChevronLeft,
   Shield,
+  UserCircle,
+  Radar,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -14,15 +19,31 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const NAV = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+};
+
+const NAV: NavItem[] = [
   { to: "/console", label: "Console", icon: Terminal },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/feed", label: "Detection Feed", icon: ListFilter },
+  { to: "/sensors", label: "Sensors", icon: Radar },
   { to: "/vuln", label: "Vuln Lookup", icon: ShieldAlert },
   { to: "/ingest", label: "Ingest", icon: Upload },
+  { to: "/profile", label: "Profile", icon: UserCircle },
 ];
+function AdminIcon({ className }: { className?: string }) {
+  return <img src={adminIcon} alt="" className={className} />;
+}
+
+const ADMIN_NAV: NavItem[] = [{ to: "/users", label: "Users", icon: AdminIcon }];
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
+  const items: NavItem[] = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+
   return (
     <aside
       className={`flex shrink-0 flex-col border-r border-hairline bg-panel transition-[width] duration-200 ${
@@ -44,7 +65,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-2">
-        {NAV.map(({ to, label, icon: Icon }) => (
+        {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

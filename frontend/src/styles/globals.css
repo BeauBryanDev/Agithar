@@ -9,19 +9,20 @@
 
 @theme {
   /* Surfaces */
-  --color-void: #0a0e14;
-  --color-panel: #111823;
-  --color-panel-2: #16202e;
-  --color-hairline: #1e2a3a;
+  --color-void: #0e104f;
+  --color-panel: #030657;
+  --color-panel-2: #02043f;
+  --color-hairline: #1b2290;
 
   /* Accents */
   --color-electric: #2e9bff;
   --color-neon: #00e5ff;
+  --color-corner: #1d4cdb;
 
   /* Text */
   --color-primary: #e4ecf5;
-  --color-secondary: #7d8fa3;
-  --color-dim: #4a5a6d;
+  --color-secondary: #9aa6e0;
+  --color-dim: #6f79c4;
 
   /* Severity scale */
   --color-sev-low: #35d0ba;
@@ -54,11 +55,36 @@ body {
 .aegis-grid {
   background-image: linear-gradient(
       to right,
-      rgba(30, 42, 58, 0.35) 1px,
+      rgba(27, 34, 144, 0.35) 1px,
       transparent 1px
     ),
-    linear-gradient(to bottom, rgba(30, 42, 58, 0.35) 1px, transparent 1px);
+    linear-gradient(to bottom, rgba(27, 34, 144, 0.35) 1px, transparent 1px);
   background-size: 40px 40px;
+}
+
+/* HUD corner brackets for cards (the Panel draws its own with spans) */
+.hud-corners {
+  --arm: 10px;
+  background-image:
+    linear-gradient(var(--color-corner), var(--color-corner)),
+    linear-gradient(var(--color-corner), var(--color-corner)),
+    linear-gradient(var(--color-corner), var(--color-corner)),
+    linear-gradient(var(--color-corner), var(--color-corner)),
+    linear-gradient(var(--color-corner), var(--color-corner)),
+    linear-gradient(var(--color-corner), var(--color-corner)),
+    linear-gradient(var(--color-corner), var(--color-corner)),
+    linear-gradient(var(--color-corner), var(--color-corner));
+  background-repeat: no-repeat;
+  background-size:
+    var(--arm) 2px, 2px var(--arm),
+    var(--arm) 2px, 2px var(--arm),
+    var(--arm) 2px, 2px var(--arm),
+    var(--arm) 2px, 2px var(--arm);
+  background-position:
+    0 0, 0 0,
+    100% 0, 100% 0,
+    0 100%, 0 100%,
+    100% 100%, 100% 100%;
 }
 
 /* Scrollbars */

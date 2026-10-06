@@ -42,3 +42,16 @@ export function formatJSON(obj: unknown): string {
     return String(obj);
   }
 }
+
+/** Bytes per second as a short readout, for example "1.4 MB/s". */
+export function formatRate(bytesPerSecond: number | null): string {
+  if (bytesPerSecond === null) return "—";
+  const units = ["B/s", "KB/s", "MB/s", "GB/s"];
+  let value = bytesPerSecond;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i += 1;
+  }
+  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}

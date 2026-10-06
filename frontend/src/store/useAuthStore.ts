@@ -3,6 +3,8 @@
 // no refresh token: when it expires the user signs in again.
 
 import { create } from "zustand";
+import { useAnalysisStore } from "./useAnalysisStore";
+import { useDetectorStore } from "./useDetectorStore";
 import { configureAuth } from "../services/apiClient";
 import { fetchMe, login, type CurrentUser } from "../services/authService";
 
@@ -53,6 +55,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: () => {
     writeToken(null);
+    // The next person on this browser must not see this conversation.
+    useAnalysisStore.getState().reset();
+    useAnalysisStore.persist.clearStorage();
+    useDetectorStore.getState().clear();
+    useDetectorStore.persist.clearStorage();
     set({ token: null, user: null, restoring: false });
   },
 

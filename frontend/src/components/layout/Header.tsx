@@ -1,15 +1,48 @@
-import { Activity, Cpu, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import { LogOut } from "lucide-react";
+import { HealthReadout } from "./HealthReadout";
+import dragon from "../../assets/dragon-avatar.webp";
+import shield from "../../assets/shield.svg";
+import claude from "../../assets/Claude.png";
+import python from "../../assets/Python.svg";
+import fastapi from "../../assets/FastAPI.svg";
+import sklearn from "../../assets/scikit-learn.svg";
+import pytorch from "../../assets/PyTorch.svg";
+import postgres from "../../assets/PostgresSQL.svg";
+import langchain from "../../assets/LangChain.png";
+import bash from "../../assets/Bash.svg";
+import ubuntu from "../../assets/Ubuntu.svg";
+import aws from "../../assets/AWS.svg";
+import typescript from "../../assets/Typescript.svg";
+import react from "../../assets/React.svg";
+import tailwind from "../../assets/Tailwindcss.svg";
+import vite from "../../assets/Vite.svg";
+
+// Left to right, as shown in the header.
+const STACK = [
+  { name: "Python", src: python },
+  { name: "FastAPI", src: fastapi },
+  { name: "scikit-learn", src: sklearn },
+  { name: "PyTorch", src: pytorch },
+  { name: "PostgreSQL", src: postgres },
+  { name: "LangChain", src: langchain },
+  { name: "Bash", src: bash },
+  { name: "Ubuntu", src: ubuntu },
+  { name: "AWS", src: aws },
+  { name: "TypeScript", src: typescript },
+  { name: "React", src: react },
+  { name: "Tailwind CSS", src: tailwind },
+  { name: "Vite", src: vite },
+];
 
 interface HeaderProps {
   detectorsActive: boolean;
-  modelName: string;
   username: string;
   onSignOut: () => void;
 }
 
 export function Header({
   detectorsActive,
-  modelName,
   username,
   onSignOut,
 }: HeaderProps) {
@@ -19,27 +52,34 @@ export function Header({
         <span className="font-mono text-xs uppercase tracking-[0.2em] text-secondary">
           Blue-Team Analysis Console
         </span>
+        <span className="hidden h-4 w-px bg-hairline xl:block" />
+        <ul className="hidden items-center gap-3 xl:flex">
+          {STACK.map((t) => (
+            <li key={t.name}>
+              <img
+                src={t.src}
+                alt={t.name}
+                title={t.name}
+                className="h-5 w-5 object-contain opacity-80 transition-opacity hover:opacity-100"
+              />
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="flex items-center gap-5">
         {/* Active model */}
         <div className="hidden items-center gap-2 sm:flex">
-          <Cpu className="h-3.5 w-3.5 text-dim" strokeWidth={1.75} />
-          <span className="font-mono text-xs text-secondary">
-            model:{" "}
-            <span className="text-electric">{modelName}</span>
+          <img src={claude} alt="Claude" className="h-5 w-5 rounded-sm" />
+          <span className="font-mono text-[11px] uppercase tracking-wider text-secondary">
+            Powered by{" "}
+            <span className="text-electric">Claude-Sonnet-5.5</span>
           </span>
         </div>
 
         <span className="hidden h-4 w-px bg-hairline sm:block" />
 
-        {/* Health readout */}
-        <div className="flex items-center gap-2">
-          <Activity className="h-3.5 w-3.5 text-dim" strokeWidth={1.75} />
-          <span className="font-mono text-xs text-secondary">
-            health <span className="text-sev-low">OK</span>
-          </span>
-        </div>
+        <HealthReadout />
 
         <span className="h-4 w-px bg-hairline" />
 
@@ -61,7 +101,14 @@ export function Header({
 
         {/* Signed-in user */}
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-secondary">{username}</span>
+          <img src={dragon} alt="" className="h-6 w-6 rounded-sm object-contain" />
+          <Link
+            to="/profile"
+            title="My profile"
+            className="font-mono text-xs text-secondary transition-colors hover:text-neon"
+          >
+            {username}
+          </Link>
           <button
             onClick={onSignOut}
             title="Sign out"
@@ -70,6 +117,10 @@ export function Header({
             <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
         </div>
+
+        <span className="h-4 w-px bg-hairline" />
+
+        <img src={shield} alt="Aegis Cyber SOC" className="h-8 w-8" />
       </div>
     </header>
   );

@@ -4,7 +4,6 @@ import { Header } from "../components/layout/Header";
 import { useUIStore } from "../store/useUIStore";
 import { useAuthStore } from "../store/useAuthStore";
 
-const ACTIVE_MODEL = "aegis-verdict-8b";
 
 export function ConsoleLayout() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
@@ -19,7 +18,6 @@ export function ConsoleLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           detectorsActive={detectorsActive}
-          modelName={ACTIVE_MODEL}
           username={user?.username ?? ""}
           onSignOut={signOut}
         />

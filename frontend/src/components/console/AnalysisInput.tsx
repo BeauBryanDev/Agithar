@@ -23,7 +23,8 @@ export function AnalysisInput({
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    // Enter sends, Shift+Enter adds a line; IME composition is left alone.
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       submit();
     }
@@ -31,7 +32,7 @@ export function AnalysisInput({
 
   return (
     <div className="border-t border-hairline bg-panel p-3">
-      <div className="relative border border-hairline bg-panel-2 transition-colors focus-within:border-electric">
+      <div className="hud-corners relative border border-hairline bg-panel-2 transition-colors focus-within:border-electric">
         <textarea
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -42,7 +43,7 @@ export function AnalysisInput({
         />
         <div className="flex items-center justify-between border-t border-hairline px-3 py-2">
           <span className="font-mono text-[10px] text-dim">
-            ⌘/Ctrl + Enter to send
+            Enter to send · Shift + Enter for a new line
           </span>
           {streaming ? (
             <Button variant="danger" onClick={onCancel}>

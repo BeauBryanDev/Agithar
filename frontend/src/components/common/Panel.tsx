@@ -25,10 +25,10 @@ export function Panel({
     >
       {corners && (
         <>
-          <span className="pointer-events-none absolute -left-px -top-px h-3 w-3 border-l border-t border-electric" />
-          <span className="pointer-events-none absolute -right-px -top-px h-3 w-3 border-r border-t border-electric" />
-          <span className="pointer-events-none absolute -bottom-px -left-px h-3 w-3 border-b border-l border-electric" />
-          <span className="pointer-events-none absolute -bottom-px -right-px h-3 w-3 border-b border-r border-electric" />
+          <span className="pointer-events-none absolute -left-0.5 -top-0.5 h-3.5 w-3.5 border-l-2 border-t-2 border-corner" />
+          <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3.5 w-3.5 border-r-2 border-t-2 border-corner" />
+          <span className="pointer-events-none absolute -bottom-0.5 -left-0.5 h-3.5 w-3.5 border-b-2 border-l-2 border-corner" />
+          <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 border-b-2 border-r-2 border-corner" />
         </>
       )}
       {(title || actions) && (
