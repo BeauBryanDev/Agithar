@@ -31,11 +31,13 @@ def sha256_hex(value: str) -> str:
 
 class EventContext(BaseModel):
     method: Optional[HTTP_METHODS] = None
-    path: Optional[str] = Field(default=None, max_length=MAX_PATH_CHARS)
+    path: Optional[str] = Field(default=None, 
+                                max_length=MAX_PATH_CHARS)
     user_agent_sha256: Optional[str] = None
     status: Optional[int] = Field(default=None, ge=100, le=599)
     # The site the request was for (the Host the web server saw).
-    host: Optional[str] = Field(default=None, max_length=MAX_HOST_CHARS)
+    host: Optional[str] = Field(default=None, 
+                                max_length=MAX_HOST_CHARS)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -124,3 +126,27 @@ class EventAccepted(BaseModel):
 class EventRejected(BaseModel):
     accepted: bool = False
     reason: str
+
+
+MAX_BATCH_EVENTS = 100
+
+
+class EventBatchIn(BaseModel):
+    events: list[SensorEventIn] = Field(min_length=1,
+                                        max_length=MAX_BATCH_EVENTS)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class EventResult(BaseModel):
+    accepted: bool
+    escalated: bool = False
+    # A fixed phrase, never the rejected input.
+    reason: Optional[str] = None
+
+
+class EventBatchOut(BaseModel):
+    accepted: int
+    rejected: int
+    escalated: int
+    results: list[EventResult]
