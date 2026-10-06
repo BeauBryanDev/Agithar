@@ -27,6 +27,19 @@ class EventOutcome:
     saved: bool = False
 
 
+# A pushed event brings its own clock. The correlator evicts windows by the
+# newest timestamp it has seen, so one far-future event would wipe every live
+# window. Pushed events must therefore be close to now.
+MAX_FUTURE_SKEW_SECONDS = 120.0
+MAX_EVENT_AGE_SECONDS = 900.0
+
+
+def timestamp_is_plausible(timestamp: float, now: float) -> bool:
+    return (
+        now - MAX_EVENT_AGE_SECONDS <= timestamp <= now + MAX_FUTURE_SKEW_SECONDS
+    )
+
+
 def build_context(
     method: str | None,
     target: str | None,
