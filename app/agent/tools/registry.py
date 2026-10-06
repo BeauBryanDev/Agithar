@@ -3,6 +3,7 @@ from langchain_core.tools import StructuredTool
 from app.agent.tools import (
     analyze_input,
     blueteam_knowledge,
+    check_sensor_health,
     cve_lookup,
     exploit_db,
     incident_history,
@@ -42,6 +43,7 @@ MASTER_TOOLS: tuple[StructuredTool, ...] = (
     mitre_tactics.TOOL,
     offensive_knowledge.TOOL,
     analyze_input.TOOL,
+    check_sensor_health.TOOL,
 )
 
 TOOLS_BY_NAME = {tool.name: tool for tool in MASTER_TOOLS}

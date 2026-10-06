@@ -38,7 +38,18 @@ def force_review(verdict: dict[str, Any] | None) -> dict[str, Any]:
 
 def draft_section(title: str, 
                   draft: str | None, 
-                  status: str) -> str:
+                  status: str
+                  ) -> str:
+    """ create a draft turn section
+
+    Args:
+        title (str): title of the section
+        draft (str | None): the draft content
+        status (str): the status of the draft
+
+    Returns:
+        str: the formatted draft section
+    """
     body = (
         demote_headings(
             sanitize_string(draft, 

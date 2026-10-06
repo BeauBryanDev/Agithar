@@ -35,6 +35,20 @@ class Dispatcher:
     def pending(self) -> int:
         return len(self._tasks)
 
+    def stats(self) -> dict[str, int]:
+        # Read-only numbers for the telemetry endpoint.
+        settings = get_settings()
+        now = time.monotonic()
+        recent = sum(1 for t in self._starts if now - t <= HOUR_SECONDS)
+
+        return {
+            "running": len(self._tasks),
+            "max_concurrent": settings.dispatch_max_concurrent,
+            "queue_limit": settings.dispatch_queue_limit,
+            "runs_last_hour": recent,
+            "hourly_cap": settings.dispatch_max_cases_per_hour,
+        }
+
     def graph(self) -> Any:
         if self._graph is None:
             from app.agent.graph.agithar import agithar_graph
