@@ -58,7 +58,9 @@ class LogTailer:
             data = json.loads(self.state_path.read_text())
 
             return TailState(
-                int(data["device"]), int(data["inode"]), int(data["offset"])
+                int(data["device"]), 
+                int(data["inode"]), 
+                int(data["offset"])
             )
 
         except (OSError, ValueError, KeyError, TypeError):

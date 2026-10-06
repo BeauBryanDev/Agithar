@@ -64,8 +64,11 @@ def top(counter: Counter, name: str) -> list[dict[str, Any]]:
 
 
 def summarize(
-    window: LogWindow, minutes: int, shop_of: dict[str, str]
+    window: LogWindow, 
+    minutes: int, 
+    shop_of: dict[str, str]
 ) -> dict[str, Any]:
+    """It summarizes a log window into a dictionary of statistics."""
     lines = window.lines
     total = len(lines)
     classes = Counter(status_class(line.status) for line in lines)
@@ -110,8 +113,11 @@ def summarize(
 
 
 def recent_errors(
-    window: LogWindow, limit: int, shop_of: dict[str, str]
+    window: LogWindow, 
+    limit: int, 
+    shop_of: dict[str, str]
 ) -> list[dict[str, Any]]:
+    """It returns the most recent errors in a log window."""
     errors = [line for line in window.lines if line.status >= 400]
 
     return [
@@ -125,4 +131,37 @@ def recent_errors(
             "client_type": agent_family(line.user_agent),
         }
         for line in reversed(errors[-limit:])
+    ]
+
+
+MAX_SERIES_POINTS = 60
+
+
+def series(
+    lines: list[AccessLine], 
+    minutes: int, now: float
+) -> list[dict[str, Any]]:
+    # Requests and errors over time, at most 60 points: one point per
+    # `bucket` minutes, so a 24 h window is not 1440 bars.
+    bucket = max(1, -(-minutes // MAX_SERIES_POINTS))
+    size = bucket * 60
+    first = int((now - minutes * 60) // size)
+    last = int(now // size)
+    requests: Counter[int] = Counter()
+    errors: Counter[int] = Counter()
+
+    for line in lines:
+        index = int(line.timestamp // size)
+
+        if first <= index <= last:
+            requests[index] += 1
+            errors[index] += 1 if line.status >= 400 else 0
+
+    return [
+        {
+            "time": index * size,
+            "requests": requests.get(index, 0),
+            "errors": errors.get(index, 0),
+        }
+        for index in range(first, last + 1)
     ]

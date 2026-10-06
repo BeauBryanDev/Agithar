@@ -10,6 +10,7 @@ from app.db.postgresql.session import (
     DatabaseNotConfiguredError,
     get_session_factory,
 )
+from app.utils.live_stats import LiveStats
 from app.ingestion.nginx_parser import AccessLine, LineError, parse_line
 from app.ingestion.payloads import http_payload
 from app.ingestion.tailer import LogTailer, follow
@@ -67,12 +68,14 @@ class NginxFeed:
         self.clock = clock
         self.windows = WindowBuilder()
         self.stats: Counter[str] = Counter()
+        self.live = LiveStats()
         self._last_stats = clock()
         self.last_line_ts: float | None = None
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
 
     def keep(self, line: AccessLine) -> bool:
+        """Keep the line if it's valid."""
         if line.forged_cf_header:
             self.stats["forged_cf_header"] += 1
 
@@ -109,8 +112,10 @@ class NginxFeed:
         self.stats["payload_anomalies"] += 1
 
         return Pending(
-            result, line.client_ip, line.timestamp, line.method,
-            line.target, line.user_agent, line.status, line.host,
+            result, line.client_ip,
+            line.timestamp, line.method,
+            line.target, line.user_agent, 
+            line.status, line.host,
         )
 
     def score_window(self, window: ClosedWindow) -> Pending | None:
@@ -124,8 +129,10 @@ class NginxFeed:
         sample = window.sample
 
         return Pending(
-            result, window.ip, window.start_timestamp, sample.method,
-            sample.target, sample.user_agent, sample.status, sample.host,
+            result, window.ip,
+            window.start_timestamp, sample.method,
+            sample.target, sample.user_agent, 
+            sample.status, sample.host,
         )
 
     def process(self, lines: list[str], idle: bool) -> list[Pending]:
@@ -147,6 +154,7 @@ class NginxFeed:
 
             self.last_line_ts = max(self.last_line_ts or 0.0, line.timestamp)
             self.stats["scored_requests"] += 1
+            self.live.record_request(line.timestamp)
             found = self.score_request(line)
             pending += [found] if found else []
             self.windows.add(line)
@@ -167,6 +175,11 @@ class NginxFeed:
             item.result.sensor, item.result.score, item.ip,
             item.status, context.path,
         )
+        self.live.record_anomaly(
+            item.timestamp, item.ip, 
+            item.result.sensor, item.result.score,
+            item.status, context.path, item.host,
+        )
 
     def emit(self, pending: list[Pending]) -> list[dict[str, Any]]:
         # Runs in a worker thread: the database is synchronous.
@@ -182,7 +195,8 @@ class NginxFeed:
             for item in pending:
                 try:
                     outcome = ingest_result(
-                        self.correlator, session, item.result, item.ip,
+                        self.correlator, session, 
+                        item.result, item.ip,
                         item.timestamp, method=item.method,
                         target=item.target, user_agent=item.user_agent,
                         status=item.status, host=item.host,
@@ -260,16 +274,21 @@ class NginxFeed:
         self._stop.set()
 
         if self._task is not None:
-            await asyncio.wait_for(self._task, timeout=STOP_TIMEOUT_SECONDS)
+            await asyncio.wait_for(self._task, 
+                                   timeout=STOP_TIMEOUT_SECONDS)
             self._task = None
 
-        logger.info("nginx feed stopped: %s", dict(sorted(self.stats.items())))
+        logger.info("nginx feed stopped: %s",
+                    dict(sorted(self.stats.items())))
 
 
 def create_feed(
-    settings: Settings, registry: Any, correlator: Any, dispatcher: Any
+    settings: Settings, 
+    registry: Any, correlator: Any,
+    dispatcher: Any
 ) -> NginxFeed:
-    tailer = LogTailer(settings.nginx_log_path, settings.ingestion_state_path)
+    tailer = LogTailer(settings.nginx_log_path, 
+                       settings.ingestion_state_path)
 
     return NginxFeed(
         registry,
