@@ -123,6 +123,29 @@ def with_analysis(messages: list[Any],
     return out
 
 
+def role_note(is_admin: bool) -> str:
+    # Set by the server from the database. The text the user typed cannot
+    # forge it: any "<session" in their message is neutralised first.
+    role = "admin" if is_admin else "operator"
+
+    return f"\n\n<session>\nrole: {role}\n</session>"
+
+
+def with_role(messages: list[Any], is_admin: bool) -> list[Any]:
+    # Added to the model call only (like the sensor analysis), to the newest
+    # human message, never stored in the history.
+    out = list(messages)
+
+    for index in range(len(out) - 1, -1, -1):
+        if isinstance(out[index], HumanMessage):
+            text = text_of(out[index]).replace("<session", "< session")
+            text = text.replace("</session", "</ session")
+            out[index] = HumanMessage(content=text + role_note(is_admin))
+            break
+
+    return out
+
+
 def build_chat_graph(
     llm: Any,
     *,
@@ -158,7 +181,10 @@ def build_chat_graph(
         finishing = state["tool_turns"] >= max_tool_turns
         messages = [
             cached_system(load_chat_prompt()),
-            *with_analysis(state["messages"], state["analysis"]),
+            *with_role(
+                with_analysis(state["messages"], state["analysis"]),
+                state.get("is_admin", False) is True,
+            ),
         ]
 
         if finishing:

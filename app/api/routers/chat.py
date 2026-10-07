@@ -118,9 +118,11 @@ async def sse_llm(
     user_id: int,
     session: ChatSession,
     request: ChatRequest,
+    is_admin: bool,
 ) -> AsyncIterator[str]:
     async for event in chat_service.stream_llm(
-        store, graph, user_id, session, request
+        store, graph, user_id, 
+        session, request, is_admin
     ):
         yield sse_event(event)
 
@@ -139,7 +141,10 @@ async def send_message(
 
     try:
         return await chat_service.complete_llm(
-            store, graph, user.user_id, session, request
+            store, graph,
+            user.user_id, 
+            session, request,
+            user.is_admin
         )
 
     except ChatFailedError:
@@ -159,7 +164,8 @@ async def stream_message(
     return StreamingResponse(
         sse_llm(store, graph, 
                 user.user_id, 
-                session, request),
+                session, request,
+                user.is_admin),
         media_type=SSE_MEDIA_TYPE,
         headers=SSE_HEADERS,
     )

@@ -245,6 +245,7 @@ async def stream_llm(
     owner_id: int,
     session: ChatSession,
     request: ChatRequest,
+    is_admin: bool = False,
 ) -> AsyncIterator[ChatStreamEvent]:
     # Runs the chat graph and yields status, evidence and cumulative token
     # events, then saves the turn and yields done. A failure yields one
@@ -254,7 +255,7 @@ async def stream_llm(
         *history_messages(session, settings.chat_history_messages),
         HumanMessage(request.input),
     ]
-    state = new_chat_state(str(owner_id), messages)
+    state = new_chat_state(str(owner_id), messages, is_admin)
     evidence: list[DetectorResult] = []
     text, sent, reply_text = "", 0, None
 
@@ -328,8 +329,11 @@ async def complete_llm(
     owner_id: int,
     session: ChatSession,
     request: ChatRequest,
+    is_admin: bool = False,
 ) -> ChatReply:
-    async for event in stream_llm(store, graph, owner_id, session, request):
+    async for event in stream_llm(
+        store, graph, owner_id, session, request, is_admin
+    ):
         if event.type == "done" and event.reply is not None:
             return event.reply
 
