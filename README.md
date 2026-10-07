@@ -1,45 +1,51 @@
 # Aegis Cyber Guard
 
-A SOC-assistant AI agent. Small local detectors score security events, a correlator groups them per IP and time window, and a master LLM agent ("Agithar", Claude via the Anthropic API) makes the final call on escalated cases. This is an academic portfolio project, built to production-style standards because it is meant to ingest real logs from the my other e-commerce projects. It is still work in progress.
+A SOC assistant. It reads the real web logs of my other e-commerce projects, scores every request with five small detection models, groups suspicious activity per IP, and hands escalated cases to an LLM agent ("Agithar") that investigates them with lookup tools, writes a report and alerts the admin on Telegram.
 
-## Architecture
+This is an academic portfolio project, built carefully because it runs against real traffic. It is read-only: Agithar watches and advises, it never blocks or changes anything.
+
+## How it works
 
 ```
-ingestion (planned) -> sensors -> correlator -> agent (planned) -> API / PostgreSQL
+nginx log -> sensors -> correlator -> agent -> incident + report + Telegram alert
 ```
 
-- **Sensors** (`app/sensors/`): five models behind a common `Sensor` / `SensorResult` interface, loaded by a registry that tolerates individual load failures.
-- **Correlator** (`app/correlator/`): keeps anomalous events in fixed 60 s windows per IP, one best event per sensor, computes a weighted composite score and escalates by severity. Weak sensors add to the score but cannot escalate alone.
-- **Master agent** (`app/agent/`, in progress): LangGraph ReAct loop with RAG and threat-intel tools. It triages escalated cases, raises a human alert, stores the incident, or lets the case pass.
-- **API** (`app/api/`): FastAPI, sync routes, JWT auth (bcrypt, HS256), in-memory failure rate limiting, strict security headers.
-- **Storage**: PostgreSQL via SQLAlchemy for users, incidents, IOCs and actions taken.
+- **Ingestion** (`app/ingestion/`): follows the nginx access log (rotation-safe, resumes where it stopped), restores the real visitor IP behind Cloudflare, builds per-IP 10 s windows. Starts in log-only mode: it scores and logs, raises nothing.
+- **Sensors** (`app/sensors/`): five models behind one interface. Thresholds come from each model's `metadata.json`.
 
-## Sensors
+| Sensor | Model | Detects |
+|---|---|---|
+| `http_payload_sensor` | TF-IDF + logistic regression | SQL injection, XSS, traversal in request URLs |
+| `recon_sensor` | XGBoost | Directory brute force and scans (10 s windows) |
+| `log_sentinel` | TextCNN (ONNX) | HDFS log sequence anomalies |
+| `net_guard` | CNN1D, 8 classes (ONNX) | Network flow attack classes |
+| `netflow_sensor` | Logistic regression | Web-attack flows |
 
-| Sensor | Model | Detects | Runtime |
-|---|---|---|---|
-| `log_sentinel` | TextCNN | HDFS log sequence anomalies | ONNX |
-| `net_guard` | CNN1D, 8 classes | Network flow attack classes (CICIDS2017) | ONNX |
-| `http_payload_sensor` | TF-IDF + logistic regression | Malicious HTTP request payloads | joblib |
-| `netflow_sensor` | Logistic regression | Web-attack flows (CIC-IDS-2017) | joblib |
-| `recon_sensor` | XGBoost | Web directory brute force / scans (MITRE T1595) | joblib |
+- **Correlator** (`app/correlator/`): 60 s windows per IP, best event per sensor, weighted score, severity low / medium / high.
+- **Agent** (`app/agent/`): LangGraph. A master LLM investigates a case with read-only tools, then two writers produce a defensive and an exposure report, a deterministic check reviews them (at most two send-backs), and the result is stored and alerted. Clear false positives are closed quietly.
+- **Tools**: local CVE database plus live NVD, MITRE ATT&CK and OWASP lookups, AbuseIPDB, VirusTotal, Shodan, ExploitDB metadata (no exploit code), server and sensor health, shop traffic from the log, and a book knowledge base in Pinecone (SOC, Linux admin, offensive basics).
+- **Chat console**: operators and admins talk to Agithar and get answers from live data. The agent knows whether it is talking to an admin or an operator.
+- **Public demo**: visitors enter as guests (no password, 30-minute token) and get a smaller agent on a cheaper model with capped tools, plus read-only sensors, CVE lookup and file analysis. Everything is limited per visitor IP.
+- **File analysis**: upload a `.log`, `.txt` or `.csv`; the sensors analyze it. Nothing is stored or executed.
 
-Thresholds, class names and features are read from each model's `metadata.json`. Metrics come from public benchmarks and are optimistic: validate on real logs before trusting any threshold. Per-model limits are documented in `CLAUDE.md`.
+## Backend and frontend
 
-## Incidents and IOCs
+- **Backend**: FastAPI, SQLAlchemy and PostgreSQL, JWT auth with admin / operator / guest roles, rate limits, input sanitizing against prompt injection hidden in logs.
+- **Frontend** (`frontend/`): React 19, Vite, Tailwind 4, TypeScript. Pages: console, dashboard, detection feed, incident detail, sensors, CVE lookup, ingest, profile, user management. The build generates a Content-Security-Policy with hashes.
 
-Escalated cases are stored as incidents. Ingestion attaches a sanitized `EventContext` to each event (HTTP method, path with the query string removed, SHA-256 of the user agent, status code). Raw URLs, bodies and user agents are never logged or stored. IOCs (IP, URL path, user agent hash) are extracted from the evidence.
+## Deployment
 
-Endpoints under `/api` (authenticated):
+One EC2 box next to the shops: the API runs under systemd as its own Unix user with memory limits, behind nginx and Cloudflare. The database is a separate database on the existing RDS instance. The frontend is built from `frontend/` and served by Cloudflare Pages.
 
-- `GET /incidents/by-ip/{ip}`, `GET /incidents/by-severity/{severity}`, `GET /incidents/{case_key}`
-- `/users/*` for login and account management; `/health` and `/health/ready` are public.
+## Status and known limits
 
-## Status
+- Running on real traffic in log-only mode while I measure false alarms.
+- The HTTP payload model was trained on a public 2010 dataset and flags some normal shop URLs. The plan is to retrain it with real normal traffic.
+- Only the payload and recon sensors have a live feed. The other three work on pasted or uploaded input.
+- The nginx log has no request bodies, so attacks inside POST bodies are not seen.
+- Metrics in the model folders come from public benchmarks and are optimistic.
 
-Implemented: sensors, correlator, users and auth, incident storage and read API, OWASP Top 10 2025 lookup. Not yet built: ingestion (log parsing, CICFlowMeter mapping), the agent graph and tools, the RAG indexer and retriever, and most external service clients. No migrations exist yet. There is no test suite.
-
-## Run
+## Run locally
 
 ```
 python3.12 -m venv arrash && arrash/bin/pip install -r requirements.txt
@@ -47,12 +53,8 @@ arrash/bin/uvicorn app.main:app --reload
 cd frontend && npm install && npm run dev
 ```
 
-Configuration is read from `.env` (model paths, `JWT_SECRET_KEY` of at least 32 characters, `DATABASE_URL`, `CORS_ORIGINS`). Model files are not all tracked in git (`*.onnx` is ignored).
-
-## Stack
-
-Python 3.12, FastAPI, SQLAlchemy, ONNX Runtime, scikit-learn, XGBoost, LangGraph, ChromaDB, Anthropic API; React 19, Vite, Tailwind 4 and TypeScript for the frontend.
+Settings are read from `.env` (`JWT_SECRET_KEY` of at least 32 characters, `DATABASE_URL`, `CORS_ORIGINS`, API keys). Model files and data are not in git (`*.onnx` is ignored); see `models/` and `data/` in the settings.
 
 ## Origin
 
-The project started as a QLoRA fine-tune of Qwen2.5-7B. It has grown well beyond that. The Qwen model is not part of the application and lives in a ZeroGPU Space on Hugging Face: `beaunix/aegis-cyber-guard`.
+The project started as a QLoRA fine-tune of Qwen2.5-7B, which lives in a ZeroGPU Space on Hugging Face (`beaunix/aegis-cyber-guard`). It is not part of the application.

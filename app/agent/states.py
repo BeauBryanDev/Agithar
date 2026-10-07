@@ -66,7 +66,9 @@ class ChatState(TypedDict):
 
 
 def new_chat_state(
-    operator_id: str, messages: list[Any], is_admin: bool = False
+    operator_id: str, 
+    messages: list[Any],
+    is_admin: bool = False
 ) -> ChatState:
     # Not an admin unless the caller says so: the safe default.
     return {
