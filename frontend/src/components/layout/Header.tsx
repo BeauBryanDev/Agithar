@@ -4,6 +4,7 @@ import { HealthReadout } from "./HealthReadout";
 import dragon from "../../assets/dragon-avatar.webp";
 import shield from "../../assets/shield.svg";
 import claude from "../../assets/Claude.png";
+import openai from "../../assets/OpenAI_icon.svg";
 import python from "../../assets/Python.svg";
 import fastapi from "../../assets/FastAPI.svg";
 import sklearn from "../../assets/scikit-learn.svg";
@@ -39,18 +40,21 @@ interface HeaderProps {
   detectorsActive: boolean;
   username: string;
   onSignOut: () => void;
+  /** The public demo: no account, no profile link, the visitor's own model. */
+  guest?: boolean;
 }
 
 export function Header({
   detectorsActive,
   username,
   onSignOut,
+  guest = false,
 }: HeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline bg-panel px-5">
       <div className="flex items-center gap-3">
         <span className="font-mono text-xs uppercase tracking-[0.2em] text-secondary">
-          Blue-Team Analysis Console
+          {guest ? "Blue-Team Public Demo" : "Blue-Team Analysis Console"}
         </span>
         <span className="hidden h-4 w-px bg-hairline xl:block" />
         <ul className="hidden items-center gap-3 xl:flex">
@@ -70,18 +74,27 @@ export function Header({
       <div className="flex items-center gap-5">
         {/* Active model */}
         <div className="hidden items-center gap-2 sm:flex">
-          <img src={claude} alt="Claude" className="h-5 w-5 rounded-sm" />
+          <img
+            src={guest ? openai : claude}
+            alt={guest ? "OpenAI" : "Claude"}
+            className="h-5 w-5 rounded-sm"
+          />
           <span className="font-mono text-[11px] uppercase tracking-wider text-secondary">
             Powered by{" "}
-            <span className="text-electric">Claude-Sonnet-5.5</span>
+            <span className="text-electric">
+              {guest ? "GPT-6-luna" : "Claude-Sonnet-5.5"}
+            </span>
           </span>
         </div>
 
         <span className="hidden h-4 w-px bg-hairline sm:block" />
 
-        <HealthReadout />
-
-        <span className="h-4 w-px bg-hairline" />
+        {!guest && (
+          <>
+            <HealthReadout />
+            <span className="h-4 w-px bg-hairline" />
+          </>
+        )}
 
         {/* Live indicator */}
         <div className="flex items-center gap-2">
@@ -101,17 +114,29 @@ export function Header({
 
         {/* Signed-in user */}
         <div className="flex items-center gap-2">
-          <img src={dragon} alt="" className="h-6 w-6 rounded-sm object-contain" />
-          <Link
-            to="/profile"
-            title="My profile"
-            className="font-mono text-xs text-secondary transition-colors hover:text-neon"
-          >
-            {username}
-          </Link>
+          {guest ? (
+            <span className="border border-hairline px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-neon">
+              Guest
+            </span>
+          ) : (
+            <>
+              <img
+                src={dragon}
+                alt=""
+                className="h-6 w-6 rounded-sm object-contain"
+              />
+              <Link
+                to="/profile"
+                title="My profile"
+                className="font-mono text-xs text-secondary transition-colors hover:text-neon"
+              >
+                {username}
+              </Link>
+            </>
+          )}
           <button
             onClick={onSignOut}
-            title="Sign out"
+            title={guest ? "Leave the demo" : "Sign out"}
             className="text-dim transition-colors hover:text-primary"
           >
             <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />

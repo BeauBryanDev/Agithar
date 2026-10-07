@@ -6,12 +6,17 @@ interface AnalysisInputProps {
   streaming: boolean;
   onSubmit: (value: string) => void;
   onCancel: () => void;
+  /** Longest message the server accepts (the public demo has a short one). */
+  maxChars?: number;
+  placeholder?: string;
 }
 
 export function AnalysisInput({
   streaming,
   onSubmit,
   onCancel,
+  maxChars,
+  placeholder = "Ask Agithar about your shops, or paste a request or log lines…",
 }: AnalysisInputProps) {
   const [value, setValue] = useState("");
 
@@ -38,12 +43,14 @@ export function AnalysisInput({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
           rows={3}
-          placeholder="Ask Agithar about your shops, or paste a request or log lines…"
+          maxLength={maxChars}
+          placeholder={placeholder}
           className="w-full resize-none bg-transparent px-3 py-2.5 font-mono text-xs text-primary placeholder:text-dim focus:outline-none"
         />
         <div className="flex items-center justify-between border-t border-hairline px-3 py-2">
           <span className="font-mono text-[10px] text-dim">
             Enter to send · Shift + Enter for a new line
+            {maxChars ? ` · ${value.length}/${maxChars}` : ""}
           </span>
           {streaming ? (
             <Button variant="danger" onClick={onCancel}>
