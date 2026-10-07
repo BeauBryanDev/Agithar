@@ -2,10 +2,18 @@ from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.agent.dispatcher import Dispatcher
-from app.core.auth import get_current_token_data, unauthorized
+from app.core.auth import (
+    GuestClaims,
+    InvalidTokenError,
+    bearer_scheme,
+    decode_guest_token,
+    get_current_token_data,
+    unauthorized,
+)
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.correlator.correlator import Correlator
@@ -103,6 +111,25 @@ def require_admin(
     return user
 
 
+def require_guest(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, 
+        Depends(bearer_scheme)
+    ] = None,
+) -> GuestClaims:
+    # The public routes accept a GUEST token and nothing else: a user's
+    # access token (operator or admin) is refused here exactly as a guest
+    # token is refused by get_current_user. No database is involved.
+    if credentials is None:
+        raise unauthorized()
+
+    try:
+        return decode_guest_token(credentials.credentials)
+
+    except InvalidTokenError:
+        raise unauthorized() from None
+
+
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentAdmin = Annotated[User, Depends(require_admin)]
@@ -110,3 +137,4 @@ AppSettings = Annotated[Settings, Depends(get_settings)]
 Registry = Annotated[SensorRegistry, Depends(get_registry)]
 CorrelatorDep = Annotated[Correlator, Depends(get_correlator)]
 DispatcherDep = Annotated[Dispatcher, Depends(get_dispatcher)]
+CurrentGuest = Annotated[GuestClaims, Depends(require_guest)]

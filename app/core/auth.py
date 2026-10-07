@@ -1,4 +1,7 @@
+import re
 import secrets
+import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -22,6 +25,17 @@ JWT_AUDIENCE = "agithar-api"
 JWT_LEEWAY_SECONDS = 10
 ACCESS_TOKEN_TYPE = "access"
 REQUIRED_CLAIMS = ("exp", "iat", "nbf", "sub", "jti", "iss", "aud", "typ")
+
+# GUEST tokens (public demo). They share the signing key but nothing else
+# with a user's access token: another audience, another type, another
+# subject shape and an explicit role. Each of those alone is enough for the
+# user routes to refuse a guest token and for the public routes to refuse a
+# user token; having all of them keeps the two kinds from ever mixing.
+GUEST_AUDIENCE = "agithar-public"
+GUEST_TOKEN_TYPE = "guest"
+GUEST_ROLE = "guest"
+GUEST_SUBJECT = re.compile(r"^guest:[0-9a-f]{32}$")
+GUEST_REQUIRED_CLAIMS = REQUIRED_CLAIMS + ("role",)
 DUMMY_HASH = bcrypt.hashpw(
     b"dummy-password", bcrypt.gensalt(BCRYPT_ROUNDS)
 ).decode("utf-8")
@@ -137,6 +151,66 @@ def decode_access_token(token: str) -> TokenData:
         raise InvalidTokenError("wrong token type")
 
     return TokenData(user_id=parse_user_id(claims.get("sub")))
+
+
+@dataclass(frozen=True)
+class GuestClaims:
+    subject: str
+    role: str
+    expires_at: int
+
+
+def create_guest_token() -> tuple[str, int]:
+    # No password and no database: anyone may ask. The token only says "a
+    # visitor of the public demo, for a while"; it opens nothing but the
+    # public chat. Returns the token and its lifetime in seconds.
+    now = datetime.now(timezone.utc)
+    seconds = get_settings().guest_token_ttl_seconds
+
+    claims = {
+        "sub": f"guest:{uuid.uuid4().hex}",
+        "role": GUEST_ROLE,
+        "iat": now,
+        "nbf": now,
+        "exp": now + timedelta(seconds=seconds),
+        "jti": secrets.token_urlsafe(16),
+        "iss": JWT_ISSUER,
+        "aud": GUEST_AUDIENCE,
+        "typ": GUEST_TOKEN_TYPE,
+    }
+
+    return jwt.encode(claims, get_signing_key(), algorithm=JWT_ALGORITHM), seconds
+
+
+def decode_guest_token(token: str) -> GuestClaims:
+    key = get_signing_key()
+
+    try:
+        claims = jwt.decode(
+            token,
+            key,
+            algorithms=[JWT_ALGORITHM],
+            audience=GUEST_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={"leeway": JWT_LEEWAY_SECONDS},
+        )
+
+    except JWTError:
+        raise InvalidTokenError("invalid token")
+
+    for claim in GUEST_REQUIRED_CLAIMS:
+        if claim not in claims:
+            raise InvalidTokenError("missing claim")
+
+    if claims["typ"] != GUEST_TOKEN_TYPE or claims["role"] != GUEST_ROLE:
+        raise InvalidTokenError("wrong token type")
+
+    subject = claims["sub"]
+
+    if not isinstance(subject, str) or not GUEST_SUBJECT.match(subject):
+        raise InvalidTokenError("invalid subject")
+
+    return GuestClaims(subject, GUEST_ROLE, int(claims["exp"]))
 
 
 def unauthorized() -> HTTPException:
