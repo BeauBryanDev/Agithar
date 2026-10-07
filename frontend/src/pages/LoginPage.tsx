@@ -8,7 +8,9 @@ import { useAuthStore } from "../store/useAuthStore";
 export function LoginPage() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
+  const mode = useAuthStore((s) => s.mode);
   const signIn = useAuthStore((s) => s.signIn);
+  const enterAsGuest = useAuthStore((s) => s.enterAsGuest);
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -16,7 +18,21 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  if (token && mode === "guest") return <Navigate to="/demo/console" replace />;
   if (token && user) return <Navigate to="/console" replace />;
+
+  const guest = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await enterAsGuest();
+      navigate("/demo/console", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The demo is unavailable");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -79,6 +95,20 @@ export function LoginPage() {
               {busy ? "Signing in…" : "Sign in"}
             </Button>
           </form>
+          <div className="mt-4 border-t border-hairline pt-4">
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              disabled={busy}
+              onClick={guest}
+            >
+              Enter as guest
+            </Button>
+            <p className="mt-2 text-center font-mono text-[10px] text-dim">
+              Public demo: read-only, no account needed.
+            </p>
+          </div>
         </Panel>
       </div>
     </div>
