@@ -1,0 +1,33 @@
+# Local PostgreSQL for the Aegis Cyber SOC project (Agithar is the agent that
+# uses it, not the owner). Credentials come from .env, never from this file.
+name: cybersoc
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cyber_soc
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${MASTER_USER}
+      POSTGRES_PASSWORD: ${MASTER_PASSWORD}
+
+    # Only this laptop can connect. 5438 belongs to florabelle-postgres.
+    ports:
+      - "127.0.0.1:5442:5432"
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    # The laptop already runs five other databases.
+    mem_limit: 512m
+
+volumes:
+  pgdata:

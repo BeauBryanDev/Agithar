@@ -251,3 +251,4 @@ data/
 
 bot_config.txt
 node_modules
+frontend/dist-security-headers.conf
