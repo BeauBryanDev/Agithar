@@ -3,6 +3,12 @@
 
 import { useCallback, useRef } from "react";
 import { streamChat } from "../services/chatService";
+import { errorStatus } from "../services/apiClient";
+import {
+  sendPublicChat,
+  type PublicHistoryItem,
+} from "../services/publicService";
+import { useAuthStore } from "../store/useAuthStore";
 import { useAnalysisStore } from "../store/useAnalysisStore";
 import { useDetectorStore } from "../store/useDetectorStore";
 import { useUIStore } from "../store/useUIStore";
@@ -10,6 +16,18 @@ import type { AnalysisMessage } from "../types/analysis";
 
 function uid(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+const UNAUTHORIZED = 401;
+
+/** The visitor chat keeps its history here: the server stores nothing. */
+function guestHistory(messages: AnalysisMessage[]): PublicHistoryItem[] {
+  return messages
+    .filter((m) => !m.streaming && m.content && !m.content.startsWith("Chat failed"))
+    .map((m) => ({
+      role: m.role === "analyst" ? ("user" as const) : ("assistant" as const),
+      content: m.content,
+    }));
 }
 
 export function useStreamingResponse() {
@@ -23,6 +41,7 @@ export function useStreamingResponse() {
   const setStreaming = useAnalysisStore((s) => s.setStreaming);
   const setSessionId = useAnalysisStore((s) => s.setSessionId);
   const setStatusLine = useAnalysisStore((s) => s.setStatusLine);
+  const setRemaining = useAnalysisStore((s) => s.setRemaining);
   const setEvidence = useDetectorStore((s) => s.setEvidence);
   const setDetectorsActive = useUIStore((s) => s.setDetectorsActive);
 
@@ -30,6 +49,10 @@ export function useStreamingResponse() {
     async (input: string) => {
       const controller = new AbortController();
       abortRef.current = controller;
+      const guest = useAuthStore.getState().mode === "guest";
+      const history = guest
+        ? guestHistory(useAnalysisStore.getState().messages)
+        : [];
 
       const analystMsg: AnalysisMessage = {
         id: uid("msg-analyst"),
@@ -57,6 +80,43 @@ export function useStreamingResponse() {
         setStatusLine(null);
         setDetectorsActive(false);
       };
+
+      if (guest) {
+        // The visitor chat answers in one piece (no streaming, no evidence).
+        setStatusLine("Agithar is thinking");
+        try {
+          const { guestToken } = useAuthStore.getState();
+          let reply;
+          try {
+            reply = await sendPublicChat(
+              input,
+              history,
+              await guestToken(),
+              controller.signal
+            );
+          } catch (err) {
+            if (errorStatus(err) !== UNAUTHORIZED) throw err;
+            // The token ran out: take a new one and try once more.
+            reply = await sendPublicChat(
+              input,
+              history,
+              await guestToken(true),
+              controller.signal
+            );
+          }
+          updateStreamingContent(systemId, reply.reply);
+          finalizeStreaming(systemId, []);
+          setRemaining(reply.remaining);
+        } catch (err) {
+          if (!controller.signal.aborted) {
+            const text = err instanceof Error ? err.message : "unknown error";
+            updateStreamingContent(systemId, `Chat failed — ${text}`);
+          }
+          finalizeStreaming(systemId, []);
+        }
+        finish();
+        return;
+      }
 
       await streamChat(
         input,
@@ -91,6 +151,7 @@ export function useStreamingResponse() {
       setStreaming,
       setSessionId,
       setStatusLine,
+      setRemaining,
       setEvidence,
       setDetectorsActive,
     ]

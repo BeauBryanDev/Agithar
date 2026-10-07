@@ -15,6 +15,8 @@ interface AnalysisState {
   sessionId: string | null; // the server-side chat session
   statusLine: string | null; // what Agithar is doing right now
   activeEvidenceId: string | null; // for the evidence connector highlight
+  remaining: number | null; // guest only: messages left in this time window
+  setRemaining: (n: number | null) => void;
   addMessage: (msg: AnalysisMessage) => void;
   updateStreamingContent: (id: string, content: string) => void;
   finalizeStreaming: (id: string, refs: EvidenceRef[]) => void;
@@ -33,6 +35,8 @@ export const useAnalysisStore = create<AnalysisState>()(
       sessionId: null,
       statusLine: null,
       activeEvidenceId: null,
+      remaining: null,
+      setRemaining: (remaining) => set({ remaining }),
       addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
       updateStreamingContent: (id, content) =>
         set((s) => ({
