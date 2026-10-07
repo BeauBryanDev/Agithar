@@ -1,8 +1,12 @@
 import threading
 import time
 from collections import deque
+from functools import lru_cache
 
 from fastapi import HTTPException, Request, status
+
+from app.core.config import get_settings
+from app.security.client_ip import Visitor, identify
 
 
 LOGIN_WINDOW_SECONDS = 900
@@ -10,7 +14,6 @@ LOGIN_IP_MAX_FAILURES = 20
 LOGIN_USER_MAX_FAILURES = 5
 PASSWORD_MAX_FAILURES = 5
 MAX_TRACKED_KEYS = 10000
-UNKNOWN_CLIENT = "unknown"
 
 # FailureLimiter is a thread-safe rate limiter that tracks failed attempts for different keys 
 #  and enforces limits on the number of failures within a specified time window. 
@@ -136,11 +139,49 @@ class UsageLimiter:
             return 0
 
 
-def client_ip(request: Request) -> str:
-    if request.client is None:
-        return UNKNOWN_CLIENT
+def remaining_events(limiter: "UsageLimiter", key: str) -> int:
+    # How many more events this key may use right now (does not count one).
+    now = time.monotonic()
 
-    return request.client.host
+    with limiter.lock:
+        recent = limiter.events.get(key, deque())
+        used = sum(1 for t in recent if now - t < limiter.window_seconds)
+
+    return max(limiter.max_events - used, 0)
+
+
+def client_ip(request: Request) -> str:
+    # The key a limiter counts for this client: the real visitor address
+    # (its /64 for IPv6) even behind Cloudflare and our own nginx, with the
+    # same trust rule as the log parser (security/client_ip.identify). A
+    # client that cannot be identified shares one bucket, never the proxy's.
+    return identify(request).key
+
+
+@lru_cache
+def public_visitor_limiter() -> UsageLimiter:
+    settings = get_settings()
+
+    return UsageLimiter(
+        settings.public_chat_ip_limit, settings.public_chat_ip_window_seconds
+    )
+
+
+@lru_cache
+def visitor_token_limiter() -> UsageLimiter:
+    # How often one visitor may ask for a guest token (it costs nothing, but
+    # a script should not be able to mint them without end).
+    return UsageLimiter(get_settings().public_visitor_tokens_per_hour, 3600)
+
+
+def use_visitor_quota(visitor: Visitor) -> int:
+    # 0 when the visitor may go on (and one use is counted), otherwise the
+    # number of seconds to wait.
+    return public_visitor_limiter().hit(visitor.key)
+
+
+def visitor_quota_left(visitor: Visitor) -> int:
+    return remaining_events(public_visitor_limiter(), visitor.key)
 
 
 def too_many_requests(wait: int) -> HTTPException:

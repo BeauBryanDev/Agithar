@@ -301,7 +301,9 @@ def read_flow_rows_unsafe(
         yield number, features, context
 
 
-def read_flow_rows(lines: list[str], needed: dict[str, str], max_rows: int):
+def read_flow_rows(lines: list[str], 
+                   needed: dict[str, str], 
+                   max_rows: int):
     # A malformed or hostile CSV must end as a clean rejection, never a 500.
     try:
         yield from read_flow_rows_unsafe(lines, needed, max_rows)

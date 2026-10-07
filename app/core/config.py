@@ -117,6 +117,49 @@ class Settings(BaseSettings):
     agent_prompt_cache: bool = True
     # Server-side fallback when the model declines a request (refusal).
     agent_fallbacks: bool = True
+    # Public demo mode: no access to live systems, no shop data, no incidents.
+    public_chat: bool = False
+    # The public demo runs on the secretaries' kind of model (cheap), never
+    # on the master: Claude Sonnet is for the SOC operators.
+    public_chat_model: str = "gpt-6-luna"
+    public_chat_effort: Literal["low", "medium", "high"] = "low"
+    # Hard budgets that protect the free API keys and the VPS CPU. They are
+    # global (all visitors together); a per-visitor limit sits on the router.
+    public_nvd_per_hour: int = Field(default=10, ge=0, le=200)
+    public_analysis_concurrency: int = Field(default=2, ge=1, le=8)
+    public_analyses_per_minute: int = Field(default=20, ge=1, le=300)
+    # Per VISITOR (real client IP): 20 messages per 10 minutes, and a visitor
+    # message is at most 640 characters.
+    public_chat_ip_limit: int = Field(default=20, ge=1, le=1000)
+    public_chat_ip_window_seconds: int = Field(
+        default=600, ge=60, le=86400
+    )
+    public_chat_message_chars: int = Field(default=640, ge=100, le=4000)
+    # Reverse proxies whose X-Real-IP header may be believed (nginx on this
+    # machine). A request from any other address is taken at face value.
+    trusted_proxies: str = "127.0.0.1,::1"
+    # GUEST TOKENS (public demo): no password, 30 minutes, a single scope.
+    guest_token_ttl_seconds: int = Field(default=1800, ge=60, le=86400)
+    public_visitor_tokens_per_hour: int = Field(default=20, ge=1, le=1000)
+    # Global caps of the public chat: all visitors together, per UTC day,
+    # and how many model runs may be in flight at once.
+    public_chat_daily_messages: int = Field(default=3000, ge=0, le=100000)
+    public_chat_concurrency: int = Field(default=4, ge=1, le=20)
+    public_chat_max_tool_turns: int = Field(default=4, ge=1, le=10)
+    public_chat_max_output_tokens: int = Field(default=4096, ge=256, le=8000)
+    # The other public demo pages (sensors, CVE lookup, file analysis). Per
+    # visitor (real IP) per 10 minutes; the file analysis also has hard caps
+    # far below the operators' and a global hourly budget.
+    public_sensors_per_10min: int = Field(default=30, ge=1, le=600)
+    public_vuln_per_10min: int = Field(default=30, ge=1, le=600)
+    public_ingest_per_10min: int = Field(default=3, ge=1, le=60)
+    public_ingest_per_hour_global: int = Field(default=60, ge=1, le=2000)
+    public_ingest_max_bytes: int = Field(
+        default=1024 * 1024, ge=1024, le=10 * 1024 * 1024
+    )
+    public_ingest_max_lines: int = Field(default=5000, ge=100, le=50_000)
+    public_ingest_max_flow_rows: int = Field(default=500, ge=10, le=10_000)
+    public_ingest_time_budget_seconds: int = Field(default=10, ge=2, le=40)
 
     # SECRETARIES: the report writers by OpenAI Responses API. .
     secretary_model: str = "gpt-6-luna"
@@ -157,9 +200,19 @@ class Settings(BaseSettings):
         "florabelle=spring-bloom.tensorkingdom.com"
     )
     chat_max_tool_turns: int = Field(default=4, ge=1, le=10)
-    chat_max_output_tokens: int = Field(default=2048, ge=256, le=8000)
+    chat_max_output_tokens: int = Field(default=4096, ge=256, le=8000)
     chat_history_messages: int = Field(default=12, ge=0, le=50)
     chat_rate_limit_per_minute: int = Field(default=10, ge=1, le=120)
+
+    # POST /api/ingest: analysis of an uploaded log or flow CSV. Every limit
+    # is a hard cap; nothing is written to disk.
+    ingest_max_bytes: int = Field(
+        default=20 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024
+    )
+    ingest_max_lines: int = Field(default=50_000, ge=100, le=200_000)
+    ingest_max_flow_rows: int = Field(default=10_000, ge=100, le=50_000)
+    ingest_time_budget_seconds: int = Field(default=40, ge=5, le=120)
+    ingest_rate_limit_per_10min: int = Field(default=5, ge=1, le=60)
 
     # POST /api/events: machine feeds send this key in X-Ingest-Key (admins
     # can use their login instead). Unset means only admins can push.
@@ -308,6 +361,15 @@ class Settings(BaseSettings):
 
         return value
 
+    @field_validator("trusted_proxies", mode="after")
+    @classmethod
+    def check_trusted_proxies(cls, value: str) -> str:
+        for item in value.split(CORS_SEPARATOR):
+            if item.strip():
+                normalize_ip(item)
+
+        return value
+
     @field_validator("ingestion_ignore_ips", mode="after")
     @classmethod
     def check_ignore_ips(cls, value: str) -> str:
@@ -352,6 +414,12 @@ class Settings(BaseSettings):
         hosts = [h.strip().lower() for h in self.ingestion_hosts.split(",")]
 
         return [host for host in hosts if host]
+
+    @property
+    def trusted_proxy_list(self) -> list[str]:
+        items = self.trusted_proxies.split(CORS_SEPARATOR)
+
+        return [normalize_ip(item) for item in items if item.strip()]
 
     @property
     def ingestion_ignore_ip_list(self) -> list[str]:

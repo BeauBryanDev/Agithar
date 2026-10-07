@@ -451,6 +451,7 @@ def summarise(out: Outcome) -> tuple[list[SourceSummary], str, float]:
             flagged=source.flagged,
         ))
 
+    # sort by severity, then composite score, descending
     rows.sort(key=lambda r: (-SEVERITY_RANK[r.severity], -r.composite_score))
 
     if not rows:

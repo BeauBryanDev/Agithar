@@ -1,14 +1,13 @@
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from functools import lru_cache
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from app.agent.graph.chat import get_chat_graph
 from app.agent.llm.agithar_client import AgentConfigError
-from app.api.deps import CurrentUser, Registry
+from app.api.deps import CurrentUser
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.security.rate_limit import UsageLimiter, too_many_messages
@@ -85,8 +84,7 @@ def chat_unavailable() -> HTTPException:
 
 
 def build_graph():
-    # Built on the first admin message: a missing Claude key then affects
-    # only the LLM chat, never the sensor-only reply of the other users.
+    # Built on the first message: a missing Claude key gives a clean 503.
     try:
         return get_chat_graph()
 
@@ -110,31 +108,8 @@ def open_chat_session(
         raise session_limit() from exc
 
 
-def run_chat(
-    store: ChatStore,
-    registry: Registry,
-    user_id: int,
-    request: ChatRequest,
-) -> ChatReply:
-    try:
-        return chat_service.respond(store,
-                                    registry, 
-                                    user_id, request)
-
-    except SessionNotFoundError as exc:
-        raise session_not_found() from exc
-
-    except SessionLimitError as exc:
-        raise session_limit() from exc
-
-
 def sse_event(event) -> str:
     return f"data: {event.model_dump_json(exclude_none=True)}\n\n"
-
-
-def sse_lines(reply: ChatReply) -> Iterator[str]:
-    for event in chat_service.stream_events(reply):
-        yield sse_event(event)
 
 
 async def sse_llm(
@@ -154,16 +129,10 @@ async def sse_llm(
 async def send_message(
     request: ChatRequest,
     user: CurrentUser,
-    registry: Registry,
     store: Store,
 ) -> ChatReply:
-    # Admins talk to the LLM (the chat graph); everyone else gets the
-    # sensor-only reply.
-    if not user.is_admin:
-        return await run_in_threadpool(
-            run_chat, store, registry, user.user_id, request
-        )
-
+    # Every signed-in user (admins and registered SOC operators) talks to
+    # the LLM. The public visitors have their own chat and model.
     graph = build_graph()
     ensure_chat_allowed(user.user_id)
     session = open_chat_session(store, user.user_id, request)
@@ -181,21 +150,8 @@ async def send_message(
 async def stream_message(
     request: ChatRequest,
     user: CurrentUser,
-    registry: Registry,
     store: Store,
 ) -> StreamingResponse:
-    if not user.is_admin:
-        reply = await run_in_threadpool(
-            run_chat, store, registry,
-            user.user_id, request
-        )
-
-        return StreamingResponse(
-            sse_lines(reply),
-            media_type=SSE_MEDIA_TYPE, 
-            headers=SSE_HEADERS
-        )
-
     graph = build_graph()
     ensure_chat_allowed(user.user_id)
     session = open_chat_session(store, user.user_id, request)
@@ -225,7 +181,8 @@ def list_sessions(
                            limit=limit)
 
 
-@router.get("/sessions/{session_id}", response_model=ChatSession)
+@router.get("/sessions/{session_id}", 
+            response_model=ChatSession)
 def get_session(
     session_id: SessionId, user: CurrentUser, store: Store
 ) -> ChatSession:
@@ -237,7 +194,8 @@ def get_session(
 
 
 @router.delete(
-    "/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT
+    "/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT
 )
 def delete_session(
     session_id: SessionId, 
