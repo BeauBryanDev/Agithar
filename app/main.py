@@ -12,7 +12,10 @@ from app.api.routers import (
     events,
     health,
     incidents,
+    ingest,
     live,
+    public,
+    public_demo,
     sensors,
     telemetry,
     traffic,
@@ -54,6 +57,9 @@ ROUTERS: tuple[APIRouter, ...] = (
     live.router,
     traffic.router,
     sensors.router,
+    ingest.router,
+    public.router,
+    public_demo.router,
 )
 
 
