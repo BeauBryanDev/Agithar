@@ -9,13 +9,29 @@ const UNAUTHORIZED = 401;
 // The auth store registers itself here, so this file needs no store import.
 let tokenProvider: () => string | null = () => null;
 let unauthorizedHandler: () => void = () => {};
+let guestProvider: () => boolean = () => false;
+let guestRenewer: () => Promise<string> = async () => "";
 
 export function configureAuth(
   provider: () => string | null,
-  onUnauthorized: () => void
+  onUnauthorized: () => void,
+  isGuest: () => boolean = () => false,
+  renewGuest: () => Promise<string> = async () => ""
 ): void {
   tokenProvider = provider;
   unauthorizedHandler = onUnauthorized;
+  guestProvider = isGuest;
+  guestRenewer = renewGuest;
+}
+
+/** True in the public demo. */
+export function isGuestSession(): boolean {
+  return guestProvider();
+}
+
+/** The public demo has its own read-only routes under /public. */
+export function apiPath(path: string): string {
+  return guestProvider() ? `/public${path}` : path;
 }
 
 /** For code that cannot use axios: the token was refused, sign out. */
@@ -37,13 +53,25 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = tokenProvider();
+const VISITORS_PATH = "/public/visitors";
+
+apiClient.interceptors.request.use(async (config) => {
+  // A guest token lasts 30 minutes: renew it before it runs out, so a page
+  // that stays open never starts failing. (Minting one needs no token.)
+  const minting = String(config.url ?? "").endsWith(VISITORS_PATH);
+  const token =
+    guestProvider() && !minting ? await guestRenewer() : tokenProvider();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+/** The HTTP status of a failed request, when there was one. */
+export function errorStatus(err: unknown): number | null {
+  const status = (err as { status?: unknown })?.status;
+  return typeof status === "number" ? status : null;
+}
 
 /** FastAPI sends detail as a string, or as a list of {msg} for a 422. */
 function describe(detail: unknown, fallback: string): string {
@@ -73,6 +101,6 @@ apiClient.interceptors.response.use(
       error?.response?.data?.detail,
       error?.message ?? "Unknown transport error"
     );
-    return Promise.reject(new Error(message));
+    return Promise.reject(Object.assign(new Error(message), { status }));
   }
 );
