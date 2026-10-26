@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from functools import lru_cache
 from typing import Annotated
@@ -19,11 +20,11 @@ from app.schemas.chat import (
 )
 from app.services import chat_service
 from app.services.chat_service import ChatFailedError
+from app.services.chat_history_store import AnyChatStore, get_chat_store
 from app.services.chat_store import (
-    ChatStore,
+    ChatHistoryError,
     SessionLimitError,
     SessionNotFoundError,
-    get_chat_store,
 )
 
 DEFAULT_PAGE_SIZE = 50
@@ -37,7 +38,7 @@ logger = get_logger("api.chat")
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-Store = Annotated[ChatStore, Depends(get_chat_store)]
+Store = Annotated[AnyChatStore, Depends(get_chat_store)]
 Skip = Annotated[int, Query(ge=0)]
 Limit = Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)]
 SessionId = Annotated[
@@ -83,6 +84,17 @@ def chat_unavailable() -> HTTPException:
     )
 
 
+def history_unavailable() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Chat history is unavailable",
+    )
+
+
+def user_role(is_admin: bool) -> str:
+    return "admin" if is_admin else "operator"
+
+
 def build_graph():
     # Built on the first message: a missing Claude key gives a clean 503.
     try:
@@ -93,13 +105,16 @@ def build_graph():
         raise chat_unavailable() from None
 
 
-def open_chat_session(
-    store: ChatStore,
-    user_id: int, 
-    request: ChatRequest
+async def open_chat_session(
+    store: AnyChatStore,
+    user_id: int,
+    request: ChatRequest,
+    role: str,
 ) -> ChatSession:
     try:
-        return chat_service.open_session(store, user_id, request)
+        return await asyncio.to_thread(
+            chat_service.open_session, store, user_id, request, role
+        )
 
     except SessionNotFoundError as exc:
         raise session_not_found() from exc
@@ -107,13 +122,16 @@ def open_chat_session(
     except SessionLimitError as exc:
         raise session_limit() from exc
 
+    except ChatHistoryError:
+        raise history_unavailable() from None
+
 
 def sse_event(event) -> str:
     return f"data: {event.model_dump_json(exclude_none=True)}\n\n"
 
 
 async def sse_llm(
-    store: ChatStore,
+    store: AnyChatStore,
     graph,
     user_id: int,
     session: ChatSession,
@@ -137,7 +155,9 @@ async def send_message(
     # the LLM. The public visitors have their own chat and model.
     graph = build_graph()
     ensure_chat_allowed(user.user_id)
-    session = open_chat_session(store, user.user_id, request)
+    session = await open_chat_session(
+        store, user.user_id, request, user_role(user.is_admin)
+    )
 
     try:
         return await chat_service.complete_llm(
@@ -159,7 +179,9 @@ async def stream_message(
 ) -> StreamingResponse:
     graph = build_graph()
     ensure_chat_allowed(user.user_id)
-    session = open_chat_session(store, user.user_id, request)
+    session = await open_chat_session(
+        store, user.user_id, request, user_role(user.is_admin)
+    )
 
     return StreamingResponse(
         sse_llm(store, graph, 
@@ -172,14 +194,19 @@ async def stream_message(
 
 
 @router.get("/sessions", response_model=ChatSessionList)
-def list_sessions(
+async def list_sessions(
     user: CurrentUser,
     store: Store,
     skip: Skip = 0,
     limit: Limit = DEFAULT_PAGE_SIZE,
 ) -> ChatSessionList:
-    items, total = store.list_for_owner(user.user_id, 
-                                        skip, limit)
+    try:
+        items, total = await asyncio.to_thread(
+            store.list_for_owner, user.user_id, skip, limit
+        )
+
+    except ChatHistoryError:
+        raise history_unavailable() from None
 
     return ChatSessionList(items=items, 
                            total=total, 
@@ -189,29 +216,35 @@ def list_sessions(
 
 @router.get("/sessions/{session_id}", 
             response_model=ChatSession)
-def get_session(
-    session_id: SessionId, 
-    user: CurrentUser, 
+async def get_session(
+    session_id: SessionId,
+    user: CurrentUser,
     store: Store
 ) -> ChatSession:
     try:
-        return store.get(user.user_id, session_id)
+        return await asyncio.to_thread(store.get, user.user_id, session_id)
 
     except SessionNotFoundError as exc:
         raise session_not_found() from exc
+
+    except ChatHistoryError:
+        raise history_unavailable() from None
 
 
 @router.delete(
     "/sessions/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT
 )
-def delete_session(
-    session_id: SessionId, 
-    user: CurrentUser, 
+async def delete_session(
+    session_id: SessionId,
+    user: CurrentUser,
     store: Store
 ) -> None:
     try:
-        store.delete(user.user_id, session_id)
+        await asyncio.to_thread(store.delete, user.user_id, session_id)
 
     except SessionNotFoundError as exc:
         raise session_not_found() from exc
+
+    except ChatHistoryError:
+        raise history_unavailable() from None

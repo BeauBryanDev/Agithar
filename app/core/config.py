@@ -204,6 +204,18 @@ class Settings(BaseSettings):
     chat_history_messages: int = Field(default=12, ge=0, le=50)
     chat_rate_limit_per_minute: int = Field(default=10, ge=1, le=120)
 
+    # Chat history of registered users in DynamoDB (only on the box, where
+    # the instance role gives the credentials). Off means the in-memory
+    # store, which is lost on restart.
+    chat_history_dynamodb: bool = False
+    aws_region: str = Field(
+        default="us-east-1", pattern=r"^[a-z]{2}(-[a-z]+)+-[0-9]$"
+    )
+    dynamodb_chat_table: str = Field(
+        default="agithar_chat", pattern=r"^[A-Za-z0-9_.-]{3,255}$"
+    )
+    chat_history_retention_days: int = Field(default=90, ge=1, le=3650)
+
     # POST /api/ingest: analysis of an uploaded log or flow CSV. Every limit
     # is a hard cap; nothing is written to disk.
     ingest_max_bytes: int = Field(

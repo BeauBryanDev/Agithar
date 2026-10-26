@@ -1,3 +1,4 @@
+import asyncio
 import re
 import secrets
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -9,14 +10,12 @@ from app.agent.states import new_chat_state
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.schemas.analysis import (
-    MAX_EVIDENCE_ITEMS,
     AnalyzeRequest,
     AnalyzeResponse,
     DetectorResult,
     EvidenceRef,
 )
 from app.schemas.chat import (
-    MAX_MESSAGES,
     MAX_TITLE_CHARS,
     ChatMessage,
     ChatReply,
@@ -26,7 +25,8 @@ from app.schemas.chat import (
 )
 from app.security.sanitize import sanitize_string
 from app.services.analysis_service import analyze
-from app.services.chat_store import ChatStore
+from app.services.chat_history_store import AnyChatStore
+from app.services.chat_store import ChatHistoryError
 from app.sensors.registry import SensorRegistry
 
 logger = get_logger("services.chat")
@@ -46,7 +46,9 @@ def now_utc() -> datetime:
 
 
 def new_message(
-    role: str, content: str, refs: list[EvidenceRef] | None = None
+    role: str,
+    content: str,
+    refs: list[EvidenceRef] | None = None
 ) -> ChatMessage:
     return ChatMessage(
         id=f"msg-{role}-{secrets.token_hex(4)}",
@@ -79,28 +81,6 @@ def tag_evidence(
     return evidence, refs
 
 
-def drop_dangling_refs(session: ChatSession) -> None:
-    known = {item.id for item in session.evidence}
-
-    for message in session.messages:
-        message.evidence_refs = [
-            ref for ref in message.evidence_refs if ref.id in known
-        ]
-
-
-def apply_turn(
-    session: ChatSession,
-    analyst: ChatMessage,
-    system: ChatMessage,
-    evidence: list[DetectorResult],
-) -> None:
-    session.messages.extend([analyst, system])
-    session.evidence.extend(evidence)
-    session.messages = session.messages[-MAX_MESSAGES:]
-    session.evidence = session.evidence[-MAX_EVIDENCE_ITEMS:]
-    drop_dangling_refs(session)
-
-
 def default_reply(analysis: AnalyzeResponse | None) -> str:
     if analysis is None:
         return NO_ANALYSIS_TEXT
@@ -119,16 +99,21 @@ def try_analyze(
 
 
 def open_session(
-    store: ChatStore, owner_id: int, request: ChatRequest
+    store: AnyChatStore,
+    owner_id: int,
+    request: ChatRequest,
+    role: str = "operator",
 ) -> ChatSession:
     if request.session_id is not None:
         return store.get(owner_id, request.session_id)
 
-    return store.create(owner_id, title_from(request.input), now_utc())
+    return store.create(
+        owner_id, title_from(request.input), now_utc(), role
+    )
 
 
 def respond(
-    store: ChatStore,
+    store: AnyChatStore,
     registry: SensorRegistry,
     owner_id: int,
     request: ChatRequest,
@@ -150,11 +135,7 @@ def respond(
 
     analyst = new_message("analyst", request.input)
     system = new_message("system", text, refs)
-
-    def add_turn(stored: ChatSession) -> None:
-        apply_turn(stored, analyst, system, evidence)
-
-    store.update(owner_id, session.id, add_turn)
+    store.append_turn(owner_id, session.id, analyst, system, evidence)
 
     return ChatReply(
         session_id=session.id, message=system, evidence=evidence
@@ -174,8 +155,7 @@ def stream_events(reply: ChatReply) -> Iterator[ChatStreamEvent]:
     yield ChatStreamEvent(type="done", reply=reply)
 
 
-# ---- the admin chat: the LLM graph -------------------------------------
-
+#   the admin chat: the LLM graph 
 HISTORY_CHARS = 4000
 FLUSH_CHARS = 24
 RECURSION_LIMIT = 30
@@ -240,7 +220,7 @@ def status_text(call: dict) -> str:
 
 
 async def stream_llm(
-    store: ChatStore,
+    store: AnyChatStore,
     graph: object,
     owner_id: int,
     session: ChatSession,
@@ -312,10 +292,16 @@ async def stream_llm(
     analyst = new_message("analyst", request.input)
     system = new_message("system", reply_text)
 
-    def add_turn(stored: ChatSession) -> None:
-        apply_turn(stored, analyst, system, evidence)
+    try:
+        await asyncio.to_thread(
+            store.append_turn, owner_id, session.id,
+            analyst, system, evidence,
+        )
 
-    store.update(owner_id, session.id, add_turn)
+    except ChatHistoryError:
+        # The answer is still delivered; only the history misses this turn.
+        logger.error("chat turn was not saved")
+
     reply = ChatReply(session_id=session.id, message=system,
                       evidence=evidence)
 
@@ -324,7 +310,7 @@ async def stream_llm(
 
 
 async def complete_llm(
-    store: ChatStore,
+    store: AnyChatStore,
     graph: object,
     owner_id: int,
     session: ChatSession,

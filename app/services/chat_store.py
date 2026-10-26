@@ -4,10 +4,14 @@ import time
 from datetime import datetime
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import cache
 
-from app.core.config import get_settings
-from app.schemas.chat import ChatSession, ChatSessionSummary
+from app.schemas.analysis import MAX_EVIDENCE_ITEMS, DetectorResult
+from app.schemas.chat import (
+    MAX_MESSAGES,
+    ChatMessage,
+    ChatSession,
+    ChatSessionSummary,
+)
 
 MAX_SESSIONS = 1000
 MAX_SESSIONS_PER_OWNER = 50
@@ -24,6 +28,32 @@ class SessionNotFoundError(Exception):
 
 class SessionLimitError(Exception):
     pass
+
+
+class ChatHistoryError(Exception):
+    pass
+
+
+def drop_dangling_refs(session: ChatSession) -> None:
+    known = {item.id for item in session.evidence}
+
+    for message in session.messages:
+        message.evidence_refs = [
+            ref for ref in message.evidence_refs if ref.id in known
+        ]
+
+
+def apply_turn(
+    session: ChatSession,
+    analyst: ChatMessage,
+    system: ChatMessage,
+    evidence: list[DetectorResult],
+) -> None:
+    session.messages.extend([analyst, system])
+    session.evidence.extend(evidence)
+    session.messages = session.messages[-MAX_MESSAGES:]
+    session.evidence = session.evidence[-MAX_EVIDENCE_ITEMS:]
+    drop_dangling_refs(session)
 
 
 @dataclass
@@ -59,7 +89,11 @@ class ChatStore:
         return item
 
     def create(
-        self, owner_id: int, title: str, created_at: datetime
+        self,
+        owner_id: int,
+        title: str,
+        created_at: datetime,
+        role: str = "operator",
     ) -> ChatSession:
         with self.lock:
             self.evict_expired(time.monotonic())
@@ -101,6 +135,19 @@ class ChatStore:
 
             return item.session.model_copy(deep=True)
 
+    def append_turn(
+        self,
+        owner_id: int,
+        session_id: str,
+        analyst: ChatMessage,
+        system: ChatMessage,
+        evidence: list[DetectorResult],
+    ) -> None:
+        def add_turn(stored: ChatSession) -> None:
+            apply_turn(stored, analyst, system, evidence)
+
+        self.update(owner_id, session_id, add_turn)
+
     def list_for_owner(
         self, owner_id: int, skip: int, limit: int
     ) -> tuple[list[ChatSessionSummary], int]:
@@ -126,8 +173,3 @@ class ChatStore:
         with self.lock:
             self.find(owner_id, session_id)
             del self.items[session_id]
-
-
-@cache
-def get_chat_store() -> ChatStore:
-    return ChatStore(get_settings().session_ttl_seconds)
