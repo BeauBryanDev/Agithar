@@ -171,6 +171,9 @@ STATUS_LABELS = {
     "recent_incidents": "Looking up recent incidents",
     "threat_intelligence": "Checking IP reputation",
     "cve_lookup": "Looking up a CVE",
+    "tls_certificates": "Checking TLS certificates",
+    "active_sessions": "Checking who is logged in",
+    "active_connections": "Checking network connections",
 }
 
 

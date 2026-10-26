@@ -138,9 +138,7 @@ def with_role(messages: list[Any], is_admin: bool) -> list[Any]:
 
     for index in range(len(out) - 1, -1, -1):
         if isinstance(out[index], HumanMessage):
-            # text = SESSION_TAG.sub(r"<\1 session", text_of(out[index]))
-            text = text_of(out[index]).replace("<session", "< session")
-            text = text.replace("</session", "</ session")
+            text = SESSION_TAG.sub(r"<\1 session", text_of(out[index]))
             out[index] = HumanMessage(content=text + role_note(is_admin))
             break
 

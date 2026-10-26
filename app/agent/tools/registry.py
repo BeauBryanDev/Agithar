@@ -2,6 +2,7 @@ from langchain_core.tools import StructuredTool
 
 from app.agent.tools import (
     active_connections,
+    active_sessions,
     analyze_input,
     blueteam_knowledge,
     check_sensor_health,
@@ -34,6 +35,7 @@ from app.agent.tools import (
 # deliberately absent: nothing outside this tuple can be called.
 MASTER_TOOLS: tuple[StructuredTool, ...] = (
     active_connections.TOOL,
+    active_sessions.TOOL,
     cve_lookup.TOOL,
     owasp10lookup.TOOL,
     mitre_lookup.TOOL,
@@ -88,3 +90,18 @@ CHAT_TOOLS: tuple[StructuredTool, ...] = (
     
 )
 CHAT_TOOLS_BY_NAME = {tool.name: tool for tool in CHAT_TOOLS}
+
+
+def check_unique_names(tools: tuple[StructuredTool, ...]) -> None:
+    # A repeated name would silently replace one tool with another.
+    seen: set[str] = set()
+
+    for tool in tools:
+        if tool.name in seen:
+            raise RuntimeError(f"duplicate tool name: {tool.name}")
+
+        seen.add(tool.name)
+
+
+check_unique_names((*MASTER_TOOLS, *FINISH_TOOLS))
+check_unique_names(CHAT_TOOLS)

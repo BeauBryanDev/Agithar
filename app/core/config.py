@@ -22,6 +22,34 @@ TELEGRAM_CHAT_ID_PATTERN = re.compile(r"^-?[0-9]{5,20}$")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
+def split_pairs(value: str) -> list[tuple[str, str]]:
+    pairs = []
+
+    for pair in value.split(CORS_SEPARATOR):
+        if pair.strip():
+            name, _, host = pair.partition("=")
+            pairs.append((name.strip(), host.strip().lower()))
+
+    return pairs
+
+
+def check_pairs(value: str, field: str) -> str:
+    # A comma-separated list of name=host pairs, both validated.
+    pairs = split_pairs(value)
+
+    if not pairs:
+        raise ValueError(f"{field} needs at least one name=host pair")
+
+    for name, host in pairs:
+        if not SHOP_NAME.match(name):
+            raise ValueError(f"{field} has an invalid name")
+
+        if not HOST_PATTERN.match(host):
+            raise ValueError(f"{field} has an invalid host name")
+
+    return value
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -198,6 +226,13 @@ class Settings(BaseSettings):
     shops: str = (
         "maisonroast=maisonroast.tensorkingdom.com,"
         "florabelle=spring-bloom.tensorkingdom.com"
+    )
+    # Other sites on this box whose TLS certificate the agent may check, as
+    # name=host pairs; the shops above are always checked too.
+    tls_sites: str = (
+        "agithar=api-agithar.tensorkingdom.com,"
+        "apple=api-apple.tensorkingdom.com,"
+        "smartcracklens=api-smartcracklens.tensorkingdom.com"
     )
     chat_max_tool_turns: int = Field(default=4, ge=1, le=10)
     chat_max_output_tokens: int = Field(default=4096, ge=256, le=8000)
@@ -394,32 +429,26 @@ class Settings(BaseSettings):
     @field_validator("shops", mode="after")
     @classmethod
     def check_shops(cls, value: str) -> str:
-        pairs = [p.strip() for p in value.split(CORS_SEPARATOR) if p.strip()]
+        return check_pairs(value, "shops")
 
-        if not pairs:
-            raise ValueError("shops needs at least one name=host pair")
-
-        for pair in pairs:
-            name, _, host = pair.partition("=")
-
-            if not SHOP_NAME.match(name.strip()):
-                raise ValueError("shops has an invalid shop name")
-
-            if not HOST_PATTERN.match(host.strip().lower()):
-                raise ValueError("shops has an invalid host name")
-
-        return value
+    @field_validator("tls_sites", mode="after")
+    @classmethod
+    def check_tls_sites(cls, value: str) -> str:
+        return check_pairs(value, "tls_sites")
 
     @property
     def shop_map(self) -> dict[str, str]:
-        pairs = [p for p in self.shops.split(CORS_SEPARATOR) if p.strip()]
-        result = {}
+        return dict(split_pairs(self.shops))
 
-        for pair in pairs:
-            name, _, host = pair.partition("=")
-            result[name.strip()] = host.strip().lower()
+    @property
+    def tls_site_map(self) -> dict[str, str]:
+        # The shops first, then the other sites; a name is listed once.
+        sites = dict(split_pairs(self.shops))
 
-        return result
+        for name, host in split_pairs(self.tls_sites):
+            sites.setdefault(name, host)
+
+        return sites
 
     @property
     def ingestion_host_list(self) -> list[str]:
