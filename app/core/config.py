@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.utils.network import normalize_ip
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[2] # ../../
 ENV_FILE = PROJECT_ROOT / ".env"
 MODELS_DIR = Path("models")
 CORS_SEPARATOR = ","

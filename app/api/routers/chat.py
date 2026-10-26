@@ -190,7 +190,9 @@ def list_sessions(
 @router.get("/sessions/{session_id}", 
             response_model=ChatSession)
 def get_session(
-    session_id: SessionId, user: CurrentUser, store: Store
+    session_id: SessionId, 
+    user: CurrentUser, 
+    store: Store
 ) -> ChatSession:
     try:
         return store.get(user.user_id, session_id)

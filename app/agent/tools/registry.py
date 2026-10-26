@@ -1,6 +1,7 @@
 from langchain_core.tools import StructuredTool
 
 from app.agent.tools import (
+    active_connections,
     analyze_input,
     blueteam_knowledge,
     check_sensor_health,
@@ -9,10 +10,12 @@ from app.agent.tools import (
     incident_history,
     ingestion_status,
     linux_knowledge,
+    listening_ports,
     mitre_lookup,
     mitre_tactics,
     offensive_knowledge,
     owasp10lookup,
+    top_processes,  
     recent_incidents,
     server_status,
     set_judgment,
@@ -21,18 +24,23 @@ from app.agent.tools import (
     shop_incidents,
     shop_recent_errors,
     shop_traffic,
+    tls_certificates,
     threat_intelligence,
     virustotal_lookup,
+    ssh_auth_activity,
 )
 
 # The master's allowlist. notify_admin and the write services are
 # deliberately absent: nothing outside this tuple can be called.
 MASTER_TOOLS: tuple[StructuredTool, ...] = (
+    active_connections.TOOL,
     cve_lookup.TOOL,
     owasp10lookup.TOOL,
     mitre_lookup.TOOL,
     blueteam_knowledge.TOOL,
     linux_knowledge.TOOL,
+    listening_ports.TOOL,
+    top_processes.TOOL,
     threat_intelligence.TOOL,
     shodan_lookup.TOOL,
     virustotal_lookup.TOOL,
@@ -42,8 +50,10 @@ MASTER_TOOLS: tuple[StructuredTool, ...] = (
     recent_incidents.TOOL,
     mitre_tactics.TOOL,
     offensive_knowledge.TOOL,
+    tls_certificates.TOOL,
     analyze_input.TOOL,
     check_sensor_health.TOOL,
+    ssh_auth_activity.TOOL,
 )
 
 TOOLS_BY_NAME = {tool.name: tool for tool in MASTER_TOOLS}
@@ -75,5 +85,6 @@ CHAT_TOOLS: tuple[StructuredTool, ...] = (
     shop_recent_errors.TOOL,
     shop_incidents.TOOL,
     ingestion_status.TOOL,
+    
 )
 CHAT_TOOLS_BY_NAME = {tool.name: tool for tool in CHAT_TOOLS}

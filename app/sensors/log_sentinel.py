@@ -125,9 +125,11 @@ class LogSentinelSensor(Sensor):
             raise ValueError("metadata and ONNX sequence length differ")
 
     def predict(self, payload: dict[str, Any]) -> SensorResult:
+        
         try:
             events = read_events(payload)
             block_id = read_block_id(payload)
+            
         except ValueError as exc:
             logger.warning("sequence rejected: %s", exc)
             raise
