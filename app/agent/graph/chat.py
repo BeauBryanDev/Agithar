@@ -33,7 +33,7 @@ BUDGET_NOTE = (
     "Your tool budget is used up. Answer now with what you have, and say "
     "what you could not check."
 )
-
+SESSION_TAG = re.compile(r"<(/?)\s*session", re.IGNORECASE)
 # Only these inputs are worth running the sensors on. A plain question must
 # not be: the payload model scores "what is sql injection" as an attack.
 EVENT_TOKENS = re.compile(r"^\s*(?:E[0-9]{1,2}[\s,]+){3,}E[0-9]{1,2}\s*$")
@@ -138,6 +138,7 @@ def with_role(messages: list[Any], is_admin: bool) -> list[Any]:
 
     for index in range(len(out) - 1, -1, -1):
         if isinstance(out[index], HumanMessage):
+            # text = SESSION_TAG.sub(r"<\1 session", text_of(out[index]))
             text = text_of(out[index]).replace("<session", "< session")
             text = text.replace("</session", "</ session")
             out[index] = HumanMessage(content=text + role_note(is_admin))
