@@ -32,7 +32,8 @@ def get_openai_client() -> AsyncOpenAI:
 
 
 async def generate_secretary_report(
-    system_prompt: str, user_content: str
+    system_prompt: str, 
+    user_content: str
 ) -> str:
     settings = get_settings()
     client = get_openai_client()

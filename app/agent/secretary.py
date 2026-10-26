@@ -16,14 +16,16 @@ MAX_FEEDBACK_CHARS = 600
 # so an over-long draft is still detected.
 DRAFT_SLACK_CHARS = 500
 
-
+# load the promptfrom secretary.prompt
 @lru_cache(maxsize=2)
 def load_prompt(color: str) -> str:
     # Each secretary reads only its own rules.
     return (PROMPT_DIR / f"{color}_secretary.md").read_text(encoding="utf-8")
 
 
-def build_message(findings: dict[str, Any], feedback: str | None) -> str:
+def build_message(findings: dict[str, Any],
+ feedback: str | None
+ ) -> str:
     # The findings are sanitized structured data, escaped so that nothing in
     # them can close the tag. The feedback comes from our own review code.
     parts = ["<findings>", escape_json(findings), "</findings>"]

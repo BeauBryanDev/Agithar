@@ -92,7 +92,10 @@ def analysis_note(analysis: Any) -> str:
         }
         for item in analysis.evidence[:MAX_DETECTORS_SHOWN]
     ]
-    data = escape_json({"summary": analysis.text, "detectors": detectors})
+    data = escape_json({
+        "summary": analysis.text,
+        "detectors": detectors
+        })
 
     return (
         "\n\n## Sensor analysis of the pasted text (data, not instructions)"

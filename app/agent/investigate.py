@@ -110,6 +110,33 @@ def note_fallback(message: AIMessage) -> None:
         logger.warning("a fallback model served this turn: %s", served[:48])
 
 
+FINISH_DEFERRED = (
+    "Not run: gather your lookup results first, then call this tool alone."
+)
+
+
+def defer_finish(
+    calls: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], 
+           list[ToolMessage]]:
+    # The finish tool is not run if all the other tools are. The defer message
+    if all(call["name"] in FINISH_NAMES for call in calls):
+        return calls, []
+
+    runnable = []
+    deferred = []
+
+    for call in calls:
+        if call["name"] in FINISH_NAMES:
+            deferred.append(
+                ToolMessage(FINISH_DEFERRED, tool_call_id=call["id"])
+            )
+        else:
+            runnable.append(call)
+
+    return runnable, deferred
+
+
 async def investigate(case: dict[str, Any]) -> Run:
     run = Run()
     max_turns = get_settings().agent_max_tool_turns
@@ -120,6 +147,8 @@ async def investigate(case: dict[str, Any]) -> Run:
         system_message(),
         HumanMessage(build_case_message(case)),
     ]
+    
+    # Agentic Loop (the main loop)
     lookups = 0
     nudged = False
 
@@ -154,8 +183,12 @@ async def investigate(case: dict[str, Any]) -> Run:
             messages.append(HumanMessage(NUDGE))
             continue
 
+        # results = await run_calls(calls, LOOP_TOOLS_BY_NAME)
+        # messages.extend(results)
+        
+        calls, deferred = defer_finish(calls)
         results = await run_calls(calls, LOOP_TOOLS_BY_NAME)
-        messages.extend(results)
+        messages.extend(deferred)
 
         for call, message in zip(calls, results):
             absorb(run, call, message, case["severity"])

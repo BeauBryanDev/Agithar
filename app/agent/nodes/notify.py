@@ -30,7 +30,11 @@ def persist(
         if notified:
             mark_notified(session, incident_id)
         else:
-            save_report(session, incident_id, verdict, report_md, False)
+            save_report(session,
+                        incident_id, 
+                        verdict, 
+                        report_md,
+                        False)
 
 
 async def store(

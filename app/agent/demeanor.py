@@ -21,6 +21,7 @@ def load_base_prompt() -> str:
 
 
 def short(value: Any) -> str:
+    # prevent  llm prompt injection by truncating and sanitizing the value
     return sanitize_string(str(value), SHORT_CHARS)
 
 
@@ -103,7 +104,9 @@ def build_chat_message(
 ) -> str:
     # The user message for chat mode. The system prompt is load_base_prompt().
     case_block = format_chat_case_block(
-        severity, composite_score, contributing_sensors
+        severity,
+        composite_score, 
+        contributing_sensors
     )
 
     return (
