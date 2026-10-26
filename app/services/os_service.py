@@ -23,6 +23,9 @@ SIBLING_UNITS = {
 SYSTEM_UNITS = {
     "nginx": "nginx.service",
     "agithar": "cybersoc.service",
+    "postgresql": "postgresql.service",
+    "fail2ban": "fail2ban.service",
+    "ufw": "ufw.service",
 }
 ALLOWED_UNITS = frozenset(SIBLING_UNITS.values()) | frozenset(
     SYSTEM_UNITS.values()
