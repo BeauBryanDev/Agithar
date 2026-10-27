@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { ConversationThread } from "../components/console/ConversationThread";
 import { AnalysisInput } from "../components/console/AnalysisInput";
+import { ChatHistoryList } from "../components/console/ChatHistoryList";
 import { EvidencePanel } from "../components/console/EvidencePanel";
 import { Panel } from "../components/common/Panel";
 import { useAnalysisStore } from "../store/useAnalysisStore";
@@ -25,6 +27,9 @@ export function ConsolePage() {
 
   const { run, cancel } = useStreamingResponse();
   const { activeEvidenceId, activate } = useEvidenceLink();
+  // Guests have no stored history: the server keeps nothing for them.
+  const [showHistory, setShowHistory] = useState(false);
+  const historyOpen = showHistory && !guest;
 
   return (
     <div
@@ -34,7 +39,7 @@ export function ConsolePage() {
     >
       {/* Left: conversation console */}
       <Panel
-        title="Agithar"
+        title={historyOpen ? "Agithar · History" : "Agithar"}
         actions={
           <div className="flex items-center gap-3">
             {guest && remaining !== null && (
@@ -42,12 +47,22 @@ export function ConsolePage() {
                 {remaining} messages left
               </span>
             )}
+            {!guest && (
+              <Button
+                variant="ghost"
+                disabled={streaming}
+                onClick={() => setShowHistory((v) => !v)}
+              >
+                {historyOpen ? "Back to chat" : "History"}
+              </Button>
+            )}
             <Button
               variant="ghost"
               disabled={streaming}
               onClick={() => {
                 resetThread();
                 clearEvidence();
+                setShowHistory(false);
               }}
             >
               New session
@@ -57,6 +72,12 @@ export function ConsolePage() {
         className="flex min-h-0 flex-col"
         bodyClassName="flex min-h-0 flex-1 flex-col"
       >
+        {historyOpen ? (
+          <div className="min-h-0 flex-1 overflow-auto">
+            <ChatHistoryList onOpened={() => setShowHistory(false)} />
+          </div>
+        ) : (
+          <>
         <div className="min-h-0 flex-1 overflow-auto">
           <ConversationThread
             messages={messages}
@@ -80,6 +101,8 @@ export function ConsolePage() {
               : undefined
           }
         />
+          </>
+        )}
       </Panel>
 
       {!guest && (

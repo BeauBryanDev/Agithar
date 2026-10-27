@@ -17,6 +17,26 @@ export interface ChatReply {
   evidence: DetectorResult[];
 }
 
+/** GET /chat/sessions: the signed-in user's own conversations. */
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  created_at: string; // ISO 8601
+}
+
+export interface ChatSessionList {
+  items: ChatSessionSummary[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+/** GET /chat/sessions/{id}: one conversation with its messages. */
+export interface ChatSession extends ChatSessionSummary {
+  messages: ChatMessage[];
+  evidence: DetectorResult[];
+}
+
 export type ChatStreamEvent =
   | { type: "status"; text: string } // what Agithar is doing now
   | { type: "token"; text: string } // the answer so far (cumulative)

@@ -24,6 +24,7 @@ interface AnalysisState {
   setSessionId: (id: string | null) => void;
   setStatusLine: (text: string | null) => void;
   setActiveEvidence: (id: string | null) => void;
+  loadSession: (sessionId: string, messages: AnalysisMessage[]) => void;
   reset: () => void;
 }
 
@@ -54,6 +55,15 @@ export const useAnalysisStore = create<AnalysisState>()(
       setSessionId: (sessionId) => set({ sessionId }),
       setStatusLine: (statusLine) => set({ statusLine }),
       setActiveEvidence: (id) => set({ activeEvidenceId: id }),
+      // Reopens a stored conversation: the next message continues it.
+      loadSession: (sessionId, messages) =>
+        set({
+          sessionId,
+          messages,
+          streaming: false,
+          statusLine: null,
+          activeEvidenceId: null,
+        }),
       reset: () =>
         set({
           messages: [],
