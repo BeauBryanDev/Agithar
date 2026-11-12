@@ -8,6 +8,7 @@ import { SensorStatus } from "../components/dashboard/SensorStatus";
 import { LiveTelemetry } from "../components/dashboard/LiveTelemetry";
 import { LiveActivity } from "../components/dashboard/LiveActivity";
 import { ShopTraffic } from "../components/dashboard/ShopTraffic";
+import { CoveragePanel } from "../components/dashboard/CoveragePanel";
 import { MitreTechniqueBar } from "../components/dashboard/MitreTechniqueBar";
 import { EmptyState } from "../components/common/EmptyState";
 import { fetchDashboard, fetchDetectors } from "../services/dashboardService";
@@ -182,6 +183,10 @@ export function DashboardPage() {
             />
           )}
         </Panel>
+      </div>
+
+      <div className="mt-4">
+        <CoveragePanel />
       </div>
     </div>
   );
