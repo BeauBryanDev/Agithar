@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routers import (
+    coverage,
     analysis,
     chat,
     dashboard,
@@ -57,6 +58,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     live.router,
     traffic.router,
     sensors.router,
+    coverage.router,
     ingest.router,
     public.router,
     public_demo.router,

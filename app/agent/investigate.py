@@ -183,11 +183,9 @@ async def investigate(case: dict[str, Any]) -> Run:
             messages.append(HumanMessage(NUDGE))
             continue
 
-        # results = await run_calls(calls, LOOP_TOOLS_BY_NAME)
-        # messages.extend(results)
-        
         calls, deferred = defer_finish(calls)
         results = await run_calls(calls, LOOP_TOOLS_BY_NAME)
+        messages.extend(results)
         messages.extend(deferred)
 
         for call, message in zip(calls, results):

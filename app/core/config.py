@@ -103,6 +103,8 @@ class Settings(BaseSettings):
     mitre_bundle_path: Path = Path("data") / "enterprise-attack.json"
     mitre_index_path: Path = Path("data") / "mitre" / "attack_index.json"
     cve_db_path: Path = Path("data") / "cve" / "cve.sqlite3"
+    sigma_repo_path: Path = Path("data") / "sigma"
+    sigma_db_path: Path = Path("data") / "detections" / "sigma.sqlite3"
     cors_origins: str = "http://localhost:5173" # + /api at vite_base_url 
     # TODO: agithar.tensorkingdom.com when it is deployed.
     session_ttl_seconds: int = Field(default=3600, gt=0)
