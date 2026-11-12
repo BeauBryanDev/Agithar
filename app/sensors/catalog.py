@@ -120,6 +120,10 @@ PROFILES: dict[str, dict[str, Any]] = {
     },
 }
 
+# Sensors with a live feed today. The others only score pasted input or
+# pushed events, so they do not count as continuous detection.
+LIVE_SENSORS = ("http_payload_sensor", "recon_sensor")
+
 HOW_CASES_ARE_RAISED = (
     "The correlator keeps the best score per sensor for each IP and 60 s "
     "window and takes a weighted mean. Sensors with weight 0.5 or more are "
