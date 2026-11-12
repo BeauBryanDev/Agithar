@@ -10,6 +10,8 @@ langgraph
 langchain
 langchain-anthropic
 langchain-openai
+langsmith>=0.14.9 
+langchain-core>=1.6.11
 anthropic
 openai
 

@@ -1,3 +1,4 @@
+from langsmith.wrappers import wrap_openai
 from openai import AsyncOpenAI
 
 from app.core.config import get_settings
@@ -22,10 +23,16 @@ def get_openai_client() -> AsyncOpenAI:
         if key is None:
             raise SecretaryConfigError("openai api key is not configured")
 
-        _client = AsyncOpenAI(
+        client = AsyncOpenAI(
             api_key=key.get_secret_value(),
             timeout=REQUEST_TIMEOUT_SECONDS,
             max_retries=MAX_RETRIES,
+        )
+        # Traced only when LANGSMITH_TRACING is set; otherwise a pass-through.
+        _client = wrap_openai(
+            client,
+            tracing_extra={"tags": ["secretary"]},
+            chat_name="Secretary",
         )
 
     return _client

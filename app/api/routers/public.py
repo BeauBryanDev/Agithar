@@ -3,6 +3,7 @@ import hashlib
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from langchain_core.messages import AIMessage, HumanMessage
+from langsmith import tracing_context
 
 from app.agent.graph.public_chat import get_public_chat_graph
 from app.agent.llm.public_client import PublicChatConfigError
@@ -154,10 +155,12 @@ async def public_chat(
     try:
         graph = get_public_chat_graph()
         state = new_chat_state(guest.subject, messages)
-        result = await asyncio.wait_for(
-            graph.ainvoke(state, config={"recursion_limit": 30}),
-            timeout=RUN_TIMEOUT_SECONDS,
-        )
+        # Visitors' chats are never sent to LangSmith, even with tracing on.
+        with tracing_context(enabled=False):
+            result = await asyncio.wait_for(
+                graph.ainvoke(state, config={"recursion_limit": 30}),
+                timeout=RUN_TIMEOUT_SECONDS,
+            )
 
     except PublicChatConfigError:
         logger.error("the public chat model is not configured")

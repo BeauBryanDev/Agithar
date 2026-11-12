@@ -200,6 +200,7 @@ def shared_fields(
     records: list[Record],
     incident_saved: bool,
 ) -> dict[str, Any]:
+
     intel = build_intel(records)
     prior = count_prior(records, incident_saved)
 
