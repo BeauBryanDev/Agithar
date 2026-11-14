@@ -13,6 +13,7 @@ from app.db.postgresql.session import (
 from app.utils.live_stats import LiveStats
 from app.ingestion.nginx_parser import AccessLine, LineError, parse_line
 from app.ingestion.payloads import http_payload
+from app.ingestion.static_assets import is_plain_asset
 from app.ingestion.tailer import LogTailer, follow
 from app.ingestion.windows import ClosedWindow, WindowBuilder
 from app.schemas.events import EventContext
@@ -153,10 +154,17 @@ class NginxFeed:
                 continue
 
             self.last_line_ts = max(self.last_line_ts or 0.0, line.timestamp)
-            self.stats["scored_requests"] += 1
             self.live.record_request(line.timestamp)
-            found = self.score_request(line)
-            pending += [found] if found else []
+
+            # Plain assets skip only the payload model; the recon windows
+            # still count them, so scans of dead asset URLs are seen.
+            if is_plain_asset(line.method, line.target):
+                self.stats["static_assets"] += 1
+            else:
+                self.stats["scored_requests"] += 1
+                found = self.score_request(line)
+                pending += [found] if found else []
+
             self.windows.add(line)
 
         closed = self.windows.close_ready(self.clock() if idle else None)

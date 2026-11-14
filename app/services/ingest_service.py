@@ -6,6 +6,7 @@ from typing import Any
 from app.core.logging import get_logger
 from app.correlator.decision import SEVERITY_RANK, decide
 from app.correlator.scoring import compute_composite
+from app.ingestion.static_assets import is_plain_asset
 from app.ingestion.upload import (
     UploadRejected,
     check_content,
@@ -182,6 +183,9 @@ def run_access_log(
         classes[f"{row.status // 100}xx"] += 1
 
         if HTTP not in registry.sensors or not row.valid_request:
+            continue
+
+        if is_plain_asset(row.method, row.target):
             continue
 
         if row.target not in cache:

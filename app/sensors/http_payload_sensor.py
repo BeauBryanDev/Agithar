@@ -62,6 +62,7 @@ class HttpPayloadSensor(Sensor):
         metadata_path: Path | None = None,
         threshold: float | None = None,
     ) -> None:
+        
         settings = get_settings()
         model_path = model_path or settings.http_payload_model_path
         metadata_path = metadata_path or settings.http_payload_metadata_path

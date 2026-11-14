@@ -44,3 +44,6 @@ psutil
 ## utils
 python-dotenv
 httpx
+
+## testing
+pytest

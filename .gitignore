@@ -246,9 +246,13 @@ enerprise-attack.json
 # Ignore Exploits
 csic_database.csv
 
-data/
+data/*
+!data/rag/
+data/rag/*
+!data/rag/golden_set.jsonl
 
 
 bot_config.txt
 node_modules
 frontend/dist-security-headers.conf
+!data/rag/golden_set.jsonl

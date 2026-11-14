@@ -35,6 +35,30 @@ def test_enforce_verdict_never_downgrades_needs_human():
     assert svc.enforce_verdict(verdict, "low").needs_human is True
 
 
+@pytest.mark.parametrize(
+    "severity, confidence, expected",
+    [
+        ("medium", 0.75, "needs_human"),
+        ("medium", 0.84, "needs_human"),
+        ("medium", 0.85, "false_positive"),
+        ("medium", 0.95, "false_positive"),
+        ("low", 0.6, "needs_human"),
+        ("high", 0.99, "needs_human"),
+    ],
+)
+def test_enforce_verdict_uncertain_false_positive(severity, confidence, expected):
+    verdict = make_verdict(
+        verdict="false_positive",
+        confidence=confidence,
+        mitre_technique=None,
+        owasp_category=None,
+    )
+    enforced = svc.enforce_verdict(verdict, severity)
+
+    assert enforced.verdict == expected
+    assert enforced.needs_human == (expected == "needs_human")
+
+
 def fake_check(status: str, **extra):
     def check(technique: str) -> dict:
         return {"status": status, "id": technique, **extra}

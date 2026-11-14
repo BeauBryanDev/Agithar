@@ -29,6 +29,7 @@ MAX_RECON_IPS = 20
 MITRE_NOTE_ROOM = 300
 MAX_EVENT_TOKENS = 10000
 MEDIUM_CONFIDENCE_FLOOR = 0.7
+FALSE_POSITIVE_CONFIDENCE_FLOOR = 0.85
 HTTP_SENSOR = "http_payload_sensor"
 RECON_SENSOR = "recon_sensor"
 LOG_SENSOR = "log_sentinel"
@@ -192,7 +193,10 @@ def enforce_verdict(verdict: AgentVerdict,
         severity == "medium"
         and verdict.confidence < MEDIUM_CONFIDENCE_FLOOR
     )
-    needs_human = needs_human or verdict.verdict == "needs_human"
+    needs_human = needs_human or verdict.verdict == "needs_human" or (
+        verdict.verdict == "false_positive"
+        and verdict.confidence < FALSE_POSITIVE_CONFIDENCE_FLOOR
+    )
 
     return verdict.model_copy(
         update={
