@@ -44,8 +44,11 @@ async def check_ip(ip: str) -> dict[str, Any]:
 
     api_key = settings.abuseipdb_api_key.get_secret_value()
 
-    headers = {"Key": api_key, "Accept": "application/json"}
-    params = {"ipAddress": ip, "maxAgeInDays": MAX_AGE_DAYS}
+    headers = {"Key": api_key, 
+               "Accept": "application/json"}
+    
+    params = {"ipAddress": ip, 
+              "maxAgeInDays": MAX_AGE_DAYS}
 
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
         try:

@@ -29,7 +29,10 @@ class PageText:
 
 
 def build_command(
-    path: Path, first: int, last: int, layout: bool
+    path: Path, 
+    first: int, 
+    last: int, 
+    layout: bool
 ) -> list[str]:
     command = ["pdftotext", "-f", str(first), "-l", str(last)]
     command += ["-enc", "UTF-8"]
@@ -79,7 +82,11 @@ def split_pages(text: str, expected: int) -> list[str]:
     return pieces
 
 
-def read_pages(path: Path, section: Section, layout: bool) -> list[str]:
+def read_pages(path: Path, 
+               section: Section,
+               layout: bool
+               ) -> list[str]:
+    
     first = section.pdf_start
     last = section.pdf_end
     command = build_command(path, first, last, layout)
@@ -112,7 +119,9 @@ def choose_pages(
 
 
 def extract_section(
-    book: Book, section: Section, path: Path
+    book: Book, 
+    section: Section, 
+    path: Path
 ) -> list[PageText]:
     mode = section.layout or book.layout
     pages = []
@@ -141,7 +150,8 @@ def extract_book(book: Book) -> list[PageText]:
 
     logger.info(
         "book extracted",
-        extra={"doc_id": book.doc_id, "pages": len(pages)},
+        extra={"doc_id": book.doc_id, 
+               "pages": len(pages)},
     )
 
     return pages

@@ -119,7 +119,10 @@ def listed_ids(index, namespace: str, doc_id: str) -> list[str]:
 
 
 def delete_stale(
-    index, namespace: str, doc_id: str, keep_ids: set[str]
+    index, 
+    namespace: str, 
+    doc_id: str, 
+    keep_ids: set[str]
 ) -> int:
     # Runs after the upsert, so a book is never left without its vectors.
     current = listed_ids(index, namespace, doc_id)

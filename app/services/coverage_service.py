@@ -163,6 +163,7 @@ def navigator_layer() -> dict[str, Any]:
 
 
 def brief(row: dict[str, Any]) -> dict[str, Any]:
+    """for the top gaps, a short view of the technique and its coverage"""
     return {
         "technique": row["technique"],
         "name": row["name"],

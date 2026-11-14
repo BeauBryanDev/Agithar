@@ -44,7 +44,6 @@ REQUEST_PATTERN = re.compile(
 )
 EVENTS_PATTERN = re.compile(r"^E\d{1,2}(\s+E\d{1,2})*$")
 
-
 logger = get_logger("services.analysis")
 
 
@@ -187,7 +186,8 @@ def to_evidence(results: list[SensorResult]) -> list[DetectorResult]:
 
 
 def enforce_verdict(verdict: AgentVerdict, 
-                    severity: str) -> AgentVerdict:
+                    severity: str
+                    ) -> AgentVerdict:
     needs_human = severity == "high" or (
         severity == "medium"
         and verdict.confidence < MEDIUM_CONFIDENCE_FLOOR

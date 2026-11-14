@@ -72,7 +72,9 @@ def load_cache(path: Path, dimension: int) -> dict[str, list[float]]:
     return cache
 
 
-def append_cache(path: Path, entries: dict[str, list[float]]) -> None:
+def append_cache(path: Path, 
+                 entries: dict[str, list[float]]
+                 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with path.open("a", encoding="utf-8") as handle:
@@ -91,7 +93,10 @@ def is_retryable(exc: OpenAIError) -> bool:
 
 
 def request_batch(
-    client: OpenAI, model: str, dimension: int, texts: list[str]
+    client: OpenAI, 
+    model: str, 
+    dimension: int, 
+    texts: list[str]
 ) -> tuple[list[list[float]], int]:
     for attempt in range(MAX_ATTEMPTS):
         try:
@@ -163,7 +168,8 @@ def embed_chunks(chunks: list[Chunk]) -> tuple[list[list[float]], EmbedStats]:
 
     logger.info(
         "chunks embedded",
-        extra={"cached": stats.cached, "requested": stats.requested},
+        extra={"cached": stats.cached, 
+               "requested": stats.requested},
     )
 
     return [cache[key] for key in keys], stats

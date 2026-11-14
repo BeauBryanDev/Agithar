@@ -246,7 +246,8 @@ def parse_rule(document: Any, path: str) -> dict[str, Any] | None:
         "detection": detection,
         "detection_truncated": truncated,
         "falsepositives": clean_list(
-            document.get("falsepositives"), MAX_ITEM_CHARS
+            document.get("falsepositives"),
+            MAX_ITEM_CHARS
         ),
         "references": clean_references(document.get("references")),
         "path": clean(path, MAX_ITEM_CHARS),

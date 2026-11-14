@@ -174,7 +174,8 @@ def chunk_book(pages: list[CleanPage],
 
     logger.info(
         "book chunked",
-        extra={"doc_id": book.doc_id, "chunks": len(chunks)},
+        extra={"doc_id": book.doc_id, 
+               "chunks": len(chunks)},
     )
 
     return chunks

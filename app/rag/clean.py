@@ -124,7 +124,9 @@ def repeated_keys(all_lines: list[list[str]]) -> set[str]:
 
 
 def remove_edges(
-    lines: list[str], keys: set[str], strip_exact: set[str]
+    lines: list[str], 
+    keys: set[str], 
+    strip_exact: set[str]
 ) -> list[str]:
     drop = set()
 
@@ -240,7 +242,8 @@ def clean_book(pages: list[PageText], book: Book) -> list[CleanPage]:
 
     logger.info(
         "book cleaned",
-        extra={"doc_id": book.doc_id, "edge_keys": len(keys)},
+        extra={"doc_id": book.doc_id, 
+               "edge_keys": len(keys)},
     )
 
     return cleaned

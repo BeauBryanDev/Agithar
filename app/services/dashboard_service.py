@@ -61,7 +61,9 @@ def build_timeline(
         score = min(max(best.get(moment, 0.0), 0.0), 1.0)
         points.append(
             TimelinePoint(
-                timestamp=moment, score=score, incidents=count[moment]
+                timestamp=moment, 
+                score=score, 
+                incidents=count[moment]
             )
         )
         moment += timedelta(seconds=size)

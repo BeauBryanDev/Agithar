@@ -81,6 +81,7 @@ class DynamoChatStore:
         created_at: datetime,
         role: str = "operator",
     ) -> ChatSession:
+        
         session = ChatSession(
             id=secrets.token_urlsafe(SESSION_ID_BYTES),
             title=title,
@@ -89,7 +90,8 @@ class DynamoChatStore:
 
         try:
             repository.create_conversation(
-                self.table, session.id, owner_id, role, session.title,
+                self.table, session.id, 
+                owner_id, role, session.title,
                 iso(created_at), self.expires_at(),
             )
 
@@ -140,7 +142,8 @@ class DynamoChatStore:
             raise history_failed("save", exc) from None
 
     def list_for_owner(
-        self, owner_id: int, skip: int, limit: int
+        self, owner_id: int, 
+        skip: int, limit: int
     ) -> tuple[list[ChatSessionSummary], int]:
         try:
             metas = repository.list_conversations(

@@ -156,7 +156,11 @@ def describe(der: bytes, host: str) -> dict[str, Any]:
     }
 
 
-def check_site(name: str, host: str, port: int = TLS_PORT) -> dict[str, Any]:
+def check_site(name: str, 
+               host: str, 
+               port: int = TLS_PORT
+               ) -> dict[str, Any]:
+    
     row: dict[str, Any] = {"site": name, "host": host}
     problem = None
 

@@ -104,6 +104,7 @@ async def request_nvd(cve_id: str) -> httpx.Response:
 
 
 def read_response(response: httpx.Response, cve_id: str) -> LiveResult:
+    
     if response.status_code in (HTTP_FORBIDDEN, HTTP_TOO_MANY):
         return LiveResult(STATUS_RATE_LIMITED)
 

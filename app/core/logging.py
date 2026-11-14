@@ -17,6 +17,7 @@ BACKUP_COUNT = 5
 MAX_MESSAGE_CHARS = 4096
 MASK = "[REDACTED]"
 CONSOLE_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
+QUIET_LOGGERS = ("httpx", "httpcore")
 
 SENSITIVE_KEYS = (
     "password",
@@ -141,7 +142,15 @@ def build_file_handler(log_dir: Path) -> logging.Handler:
     return handler
 
 
+def quiet_http_loggers() -> None:
+    # httpx logs every request URL at INFO, and some URLs carry a secret
+    # (the Telegram bot token, the Shodan key).
+    for name in QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 def configure_logging() -> logging.Logger:
+    quiet_http_loggers()
     app_logger = logging.getLogger(LOGGER_NAME)
     if app_logger.handlers:
         return app_logger

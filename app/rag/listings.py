@@ -95,7 +95,9 @@ def is_sentence_line(line: str) -> bool:
     return char_ratio(text, CODE_CHARS) <= SENTENCE_MAX_CODE_RATIO
 
 
-def extend_run(run: tuple[int, int], lines: list[str]) -> tuple[int, int]:
+def extend_run(run: tuple[int, int], 
+               lines: list[str]
+               ) -> tuple[int, int]:
     # Command output follows its prompt line until the text turns to prose.
     start, end = run
 
@@ -109,7 +111,8 @@ def extend_run(run: tuple[int, int], lines: list[str]) -> tuple[int, int]:
 
 
 def code_runs(flags: list[bool], 
-              lines: list[str]) -> list[tuple[int, int]]:
+              lines: list[str]
+              ) -> list[tuple[int, int]]:
     runs = []
     start = None
 

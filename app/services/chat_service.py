@@ -67,7 +67,9 @@ def title_from(text: str) -> str:
 
 def tag_evidence(
     analysis: AnalyzeResponse,
-) -> tuple[list[DetectorResult], list[EvidenceRef]]:
+) -> tuple[list[DetectorResult], 
+           list[EvidenceRef]]:
+    
     tag = secrets.token_hex(2)
     evidence = [
         item.model_copy(update={"id": f"{tag}-{item.id}"})
@@ -108,7 +110,9 @@ def open_session(
         return store.get(owner_id, request.session_id)
 
     return store.create(
-        owner_id, title_from(request.input), now_utc(), role
+        owner_id, 
+        title_from(request.input), now_utc(), 
+        role
     )
 
 
@@ -119,6 +123,7 @@ def respond(
     request: ChatRequest,
     reply_fn: ReplyFn | None = None,
 ) -> ChatReply:
+    
     session = open_session(store, owner_id, request)
     analysis = try_analyze(registry, request.input)
     evidence: list[DetectorResult] = []
@@ -135,7 +140,8 @@ def respond(
 
     analyst = new_message("analyst", request.input)
     system = new_message("system", text, refs)
-    store.append_turn(owner_id, session.id, analyst, system, evidence)
+    store.append_turn(owner_id, session.id, 
+                      analyst, system, evidence)
 
     return ChatReply(
         session_id=session.id, message=system, evidence=evidence
@@ -155,7 +161,7 @@ def stream_events(reply: ChatReply) -> Iterator[ChatStreamEvent]:
     yield ChatStreamEvent(type="done", reply=reply)
 
 
-#   the admin chat: the LLM graph 
+#  The admin chat: the LLM graph 
 HISTORY_CHARS = 4000
 FLUSH_CHARS = 24
 RECURSION_LIMIT = 30
@@ -189,7 +195,8 @@ def history_messages(session: ChatSession, limit: int) -> list:
     out: list = []
 
     for message in kept:
-        text = sanitize_string(message.content, HISTORY_CHARS,
+        text = sanitize_string(message.content, 
+                               HISTORY_CHARS,
                                keep_newlines=True)
         out.append(
             HumanMessage(text) if message.role == "analyst"
