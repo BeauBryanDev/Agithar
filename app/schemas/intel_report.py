@@ -19,6 +19,7 @@ class IndicatorFacts(BaseModel):
     asn_org: str | None = Field(default=None, max_length=128)
     greynoise_class: Literal["benign", "malicious", "unknown"] | None = None
     greynoise_noise: bool | None = None
+    greynoise_riot: bool | None = None
     failed_sources: list[str] = Field(default_factory=list, max_length=8)
 
 

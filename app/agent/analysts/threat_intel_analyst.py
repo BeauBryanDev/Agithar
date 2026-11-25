@@ -21,6 +21,7 @@ from app.schemas.intel_report import (
 from app.security.sanitize import escape_json, sanitize_string
 from app.services import (
     abuse_ip_service,
+    greynoise_service,
     ip_geo_loc,
     shodan_service,
     virustotal_service,
@@ -42,6 +43,7 @@ SUMMARY_CHARS = 500
 NOTES_CHARS = 800
 COUNTRY_PATTERN = re.compile(r"^[A-Z]{2}$")
 VT_COUNT_KEYS = ("malicious", "suspicious", "harmless", "undetected")
+GREYNOISE_CLASSES = ("benign", "malicious", "unknown")
 
 Lookup = Callable[[str], Awaitable[dict[str, Any]]]
 
@@ -59,14 +61,23 @@ def load_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 
-def sources_for(indicator: IndicatorInput) -> dict[str, Lookup]:
+def sources_for(
+    indicator: IndicatorInput,
+    with_greynoise: bool,
+) -> dict[str, Lookup]:
     if indicator.kind == "ip":
-        return {
+        sources = {
             "virustotal": virustotal_service.check_ip,
             "abuseipdb": abuse_ip_service.check_ip,
             "shodan": shodan_service.check_ip,
             "geo": ip_geo_loc.geo_lookup,
         }
+
+        # GreyNoise allows 50 lookups a week: only the case IP gets one.
+        if with_greynoise:
+            sources["greynoise"] = greynoise_service.lookup_ip
+
+        return sources
 
     if indicator.kind == "url":
         return {"virustotal": virustotal_service.check_url}
@@ -162,6 +173,11 @@ def build_facts(
     shodan = results.get("shodan") or {}
     vt = results.get("virustotal") or {}
     geo = results.get("geo") or {}
+    grey = results.get("greynoise")
+    grey_class = None
+
+    if grey is not None and grey.get("classification") in GREYNOISE_CLASSES:
+        grey_class = grey["classification"]
 
     return IndicatorFacts(
         value=indicator.value,
@@ -174,12 +190,18 @@ def build_facts(
         shodan_tags=list(shodan.get("tags") or [])[:MAX_TAGS],
         country=clean_country(abuse.get("country_code")),
         asn_org=clean_asn(geo.get("asn") or geo.get("org")),
+        greynoise_class=grey_class,
+        greynoise_noise=grey.get("noise") is True if grey else None,
+        greynoise_riot=grey.get("riot") is True if grey else None,
         failed_sources=[name for name, data in results.items() if data is None],
     )
 
 
-async def gather_indicator(indicator: IndicatorInput) -> IndicatorFacts:
-    sources = sources_for(indicator)
+async def gather_indicator(
+    indicator: IndicatorInput,
+    with_greynoise: bool = False,
+) -> IndicatorFacts:
+    sources = sources_for(indicator, with_greynoise)
 
     pairs = await asyncio.gather(
         *(
@@ -243,14 +265,26 @@ async def assess(
     return clean_assessment(parsed)
 
 
+def first_ip(indicators: list[IndicatorInput]) -> IndicatorInput | None:
+    for indicator in indicators:
+        if indicator.kind == "ip":
+            return indicator
+
+    return None
+
+
 async def run_intel_analyst(
     case_key: str | None,
     indicators: list[IndicatorInput],
 ) -> IntelReport:
     selected = indicators[:MAX_INDICATORS]
-    facts = list(
-        await asyncio.gather(*(gather_indicator(i) for i in selected))
-    )
+    case_ip = first_ip(selected)
+    lookups = []
+
+    for indicator in selected:
+        lookups.append(gather_indicator(indicator, indicator is case_ip))
+
+    facts = list(await asyncio.gather(*lookups))
     assessment = await assess(case_key, facts)
 
     return IntelReport(

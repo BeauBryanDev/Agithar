@@ -127,6 +127,10 @@ class Settings(BaseSettings):
             "VIRUS_TOTAL_API_KEY"
         ),
     )
+    # Graey Noise API Key
+    grey_noise_api_key: SecretStr | None = None
+    # The free tier allows 50 lookups a week; the count survives restarts.
+    grey_noise_budget_path: Path = Path("data/greynoise/budget.json")
 
     # RAG: embeddings and vector store
     openai_api_key: SecretStr | None = None
@@ -199,6 +203,7 @@ class Settings(BaseSettings):
     # DISPATCHER: how escalated cases are run through the agent graph. A case
     # that cannot run (queue full, hourly cap, crash, timeout) still alerts
     # the admin with a pending verdict.
+    dispatch_model: str = "claude-sonnet-5-5"
     dispatch_max_concurrent: int = Field(default=2, ge=1, le=8)
     dispatch_queue_limit: int = Field(default=20, ge=1, le=200)
     dispatch_case_timeout_seconds: int = Field(default=300, ge=30, le=1800)
@@ -330,6 +335,7 @@ class Settings(BaseSettings):
         "shodan_api_key",
         "nvd_api_key",
         "virustotal_api_key",
+        "grey_noise_api_key",
         "openai_api_key",
         "anthropic_api_key",
         "pinecone_api_key",
