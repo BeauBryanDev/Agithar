@@ -182,6 +182,7 @@ STATUS_LABELS = {
     "detection_coverage": "Checking detection coverage",
     "active_sessions": "Checking who is logged in",
     "active_connections": "Checking network connections",
+    "delegate_intel_analyst": "Asking the threat intel analyst",
 }
 
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field , model_validator
 
 class IndicatorFacts(BaseModel):
     value: str = Field(max_length=256)
-    kind: Literal["ip", "domain", "url", "file_hash"]
+    kind: Literal["ip", "url", "file_hash"]
     abuseipdb_score: int | None = Field(default=None, ge=0, le=100)
     abuseipdb_reports: int | None = Field(default=None, ge=0)
     virustotal_malicious: int | None = Field(default=None, ge=0)
@@ -24,7 +24,7 @@ class IndicatorFacts(BaseModel):
 
 class IndicatorInput(BaseModel):
     value: str = Field(min_length=1, max_length=256)
-    kind: Literal["ip", "domain", "url", "file_hash"]
+    kind: Literal["ip", "url", "file_hash"]
 
     @model_validator(mode="after")
     def ip_must_be_public(self) -> Self:

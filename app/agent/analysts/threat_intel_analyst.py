@@ -34,7 +34,7 @@ PROMPT_PATH = (
     / "threat_intel_analyst.md"
 )
 SOURCE_TIMEOUT_SECONDS = 10
-MAX_INDICATORS = 10
+MAX_INDICATORS = 4
 MAX_PORTS = 64
 MAX_TAGS = 16
 MAX_ASN_CHARS = 128
@@ -60,7 +60,6 @@ def load_prompt() -> str:
 
 
 def sources_for(indicator: IndicatorInput) -> dict[str, Lookup]:
-    # VirusTotal has no domain lookup here, so a domain gets no sources.
     if indicator.kind == "ip":
         return {
             "virustotal": virustotal_service.check_ip,
@@ -72,10 +71,7 @@ def sources_for(indicator: IndicatorInput) -> dict[str, Lookup]:
     if indicator.kind == "url":
         return {"virustotal": virustotal_service.check_url}
 
-    if indicator.kind == "file_hash":
-        return {"virustotal": virustotal_service.check_hash}
-
-    return {}
+    return {"virustotal": virustotal_service.check_hash}
 
 
 async def query_source(

@@ -31,6 +31,7 @@ from app.agent.tools import (
     threat_intelligence,
     virustotal_lookup,
     ssh_auth_activity,
+    delegate_threat_intel
 )
 
 # The master's allowlist. notify_admin and the write services are
@@ -60,6 +61,7 @@ MASTER_TOOLS: tuple[StructuredTool, ...] = (
     analyze_input.TOOL,
     check_sensor_health.TOOL,
     ssh_auth_activity.TOOL,
+    delegate_threat_intel.TOOL,
 )
 
 TOOLS_BY_NAME = {tool.name: tool for tool in MASTER_TOOLS}
@@ -93,6 +95,12 @@ CHAT_TOOLS: tuple[StructuredTool, ...] = (
     ingestion_status.TOOL,
     
 )
+
+
+ADMIN_CHAT_TOOLS =  [
+    *MASTER_TOOLS,
+    delegate_threat_intel
+]
 CHAT_TOOLS_BY_NAME = {tool.name: tool for tool in CHAT_TOOLS}
 
 
