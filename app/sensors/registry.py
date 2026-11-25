@@ -54,7 +54,9 @@ class SensorRegistry:
 
         return sensor
 
-    def predict(self, name: str, payload: dict[str, Any]) -> SensorResult:
+    def predict(self, name: str, 
+                payload: dict[str, Any]
+                ) -> SensorResult:
         return self.get(name).predict(payload)
 
 
