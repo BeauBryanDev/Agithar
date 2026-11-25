@@ -257,6 +257,10 @@ class Settings(BaseSettings):
         default="agithar_chat", pattern=r"^[A-Za-z0-9_.-]{3,255}$"
     )
     chat_history_retention_days: int = Field(default=90, ge=1, le=3650)
+    # Fallback when the EC2 metadata service cannot give valtoria's id.
+    aws_instance_id: str | None = Field(
+        default=None, pattern=r"^i-[0-9a-f]{8,17}$"
+    )
 
     # POST /api/ingest: analysis of an uploaded log or flow CSV. Every limit
     # is a hard cap; nothing is written to disk.
