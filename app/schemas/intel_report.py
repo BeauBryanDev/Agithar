@@ -1,8 +1,9 @@
 
+import  ipaddress
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Self 
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field , model_validator
 
 
 class IndicatorFacts(BaseModel):
@@ -21,6 +22,18 @@ class IndicatorFacts(BaseModel):
     failed_sources: list[str] = Field(default_factory=list, max_length=8)
 
 
+class IndicatorInput(BaseModel):
+    value: str = Field(min_length=1, max_length=256)
+    kind: Literal["ip", "domain", "url", "file_hash"]
+
+    @model_validator(mode="after")
+    def ip_must_be_public(self) -> Self:
+        # Private or reserved addresses never leave the server.
+        if self.kind == "ip" and not ipaddress.ip_address(self.value).is_global:
+            raise ValueError("ip must be a public address")
+        return self
+        
+
 class IntelAssessment(BaseModel):
     reputation: Literal["clean", "suspicious", "malicious", "unknown"]
     scope: Literal["mass_scanner", "targeted", "unclear"]
@@ -31,7 +44,7 @@ class IntelAssessment(BaseModel):
 
 
 class IntelReport(BaseModel):
-    case_key: str
+    case_key: str | None = None 
     generated_at: datetime
     facts: list[IndicatorFacts] = Field(max_length=10)
     assessment: IntelAssessment

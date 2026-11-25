@@ -13,6 +13,7 @@ MAX_FIELD_CHARS = 128
 MAX_HOSTNAMES = 50
 MAX_VULNS = 50
 MAX_PORTS = 100
+MAX_TAGS = 16
 
 
 logger = get_logger("services.shodan")
@@ -124,4 +125,5 @@ async def check_ip(ip: str) -> dict[str, Any]:
         "ports": clean_ports(data.get("ports")),
         "hostnames": clean_text_list(data.get("hostnames"), MAX_HOSTNAMES),
         "vulns": clean_text_list(list(data.get("vulns") or []), MAX_VULNS),
+        "tags": clean_text_list(data.get("tags"), MAX_TAGS),
     }
